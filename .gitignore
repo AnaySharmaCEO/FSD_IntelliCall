@@ -24,7 +24,9 @@ yarn-error.log*
 # Environment Variables
 .env
 .env.local
+.env.development
 .env.development.local
+.env.production
 .env.production.local
 .env.test.local
 
@@ -61,6 +63,7 @@ certs/
 #################################################
 
 # AI Secret Sauce
+ai-engine/agents/
 ai-engine/prompts/
 ai-engine/workflows/
 ai-engine/lead-scoring/
@@ -71,14 +74,12 @@ docs/research/
 docs/patent-drafts/
 
 # Internal Notes
+business-strategy/
 internal/
 notion-exports/
 
 # Experimental Features
 experimental/
-
-# Business Logic Documentation
-business-strategy/
 
 # Private Integrations
 integrations/private/
