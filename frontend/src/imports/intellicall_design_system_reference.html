@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IntelliCall — Design System Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-bg-primary: #F7F8FA;
+    --color-bg-surface: #FFFFFF;
+    --color-bg-elevated: #FFFFFF;
+    --color-bg-sunken: #EEF1F5;
+
+    --color-text-primary: #171B24;
+    --color-text-secondary: #4B5566;
+    --color-text-muted: #8A93A6;
+    --color-text-on-accent: #FFFFFF;
+
+    --color-border-default: #DEE2E8;
+    --color-border-subtle: #ECEEF2;
+
+    --color-action-primary: #2B4C8C;
+    --color-action-primary-hover: #21396B;
+    --color-action-primary-solid: #2B4C8C;
+    --color-action-primary-solid-hover: #21396B;
+    --color-action-secondary-bg: #E9EEF7;
+    --color-action-secondary-text: #2B4C8C;
+
+    --color-success: #1E8E5A;
+    --color-success-bg: #E4F5EC;
+    --color-warning: #B7791F;
+    --color-warning-bg: #FBF0DD;
+    --color-error: #C0392B;
+    --color-error-bg: #FBE7E4;
+    --color-info: #2B4C8C;
+    --color-info-bg: #E9EEF7;
+
+    --shadow-sm: 0 1px 2px rgba(23,27,36,0.06);
+    --shadow-md: 0 4px 12px rgba(23,27,36,0.08);
+    --shadow-lg: 0 12px 32px rgba(23,27,36,0.14);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-pill: 999px;
+
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+
+    --font-ui: "IBM Plex Sans", -apple-system, sans-serif;
+    --font-data: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  html[data-theme="dark"] {
+    --color-bg-primary: #18181B;
+    --color-bg-surface: #1D1D21;
+    --color-bg-elevated: #232327;
+    --color-bg-sunken: #131315;
+
+    --color-text-primary: #E4E4E6;
+    --color-text-secondary: #9C9CA3;
+    --color-text-muted: #6B6B72;
+
+    --color-border-default: #2E2E33;
+    --color-border-subtle: #242427;
+
+    --color-action-primary: #7C93BD;
+    --color-action-primary-hover: #91A6CA;
+    --color-action-primary-solid: #4A6DA0;
+    --color-action-primary-solid-hover: #3D588A;
+    --color-action-secondary-bg: #24262B;
+    --color-action-secondary-text: #93A6C8;
+
+    --color-success: #7FA98D;
+    --color-success-bg: #1D2420;
+    --color-warning: #BE9C68;
+    --color-warning-bg: #26211A;
+    --color-error: #BE8074;
+    --color-error-bg: #271E1C;
+    --color-info: #7C93BD;
+    --color-info-bg: #21242B;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font-ui);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-size: 14px;
+    line-height: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: var(--font-data); }
+
+  a { color: inherit; text-decoration: none; }
+  button { font-family: var(--font-ui); cursor: pointer; }
+
+  /* ---------- App shell ---------- */
+  .app-shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+  .sidebar {
+    background: var(--color-bg-surface);
+    border-right: 1px solid var(--color-border-subtle);
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-5) var(--space-3);
+  }
+  .sidebar-brand {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 0 var(--space-2); margin-bottom: var(--space-6);
+  }
+  .sidebar-brand .mark {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: var(--color-action-primary-solid);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--color-text-on-accent); font-weight: 600; font-size: 12px;
+  }
+  .sidebar-brand .name { font-weight: 600; font-size: 15px; }
+
+  .nav-section { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    font-size: 13px; font-weight: 500;
+    border-left: 2px solid transparent;
+  }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .nav-item:hover { background: var(--color-bg-sunken); color: var(--color-text-primary); }
+  .nav-item.active {
+    color: var(--color-action-primary);
+    background: var(--color-action-secondary-bg);
+    border-left-color: var(--color-action-primary);
+    font-weight: 600;
+  }
+  .nav-item.muted { opacity: 0.55; }
+  .nav-tag {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+    background: var(--color-bg-sunken); color: var(--color-text-muted);
+    padding: 1px 6px; border-radius: var(--radius-pill); margin-left: auto;
+  }
+
+  .sidebar-footer {
+    margin-top: auto; padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border-subtle);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .theme-toggle {
+    display: flex; align-items: center; gap: var(--space-2);
+    background: var(--color-bg-sunken); border: none; border-radius: var(--radius-pill);
+    padding: 6px 10px; font-size: 12px; color: var(--color-text-secondary); font-weight: 500;
+  }
+
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar {
+    height: 56px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 var(--space-6);
+    border-bottom: 1px solid var(--color-border-subtle);
+    background: var(--color-bg-surface);
+  }
+  .search-input {
+    width: 320px; height: 32px; border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-default); background: var(--color-bg-primary);
+    padding: 0 var(--space-3); font-size: 13px; color: var(--color-text-secondary);
+    display: flex; align-items: center;
+  }
+  .topbar-right { display: flex; align-items: center; gap: var(--space-4); font-size: 13px; color: var(--color-text-secondary); }
+  .avatar {
+    width: 28px; height: 28px; border-radius: var(--radius-pill);
+    background: var(--color-action-secondary-bg); color: var(--color-action-primary);
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;
+  }
+
+  .content { padding: var(--space-8); max-width: 1440px; }
+
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-6); }
+  .page-header h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px 0; }
+  .page-header p { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    height: 36px; padding: 0 var(--space-4); border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600; border: none; display: inline-flex;
+    align-items: center; gap: var(--space-2);
+  }
+  .btn-primary { background: var(--color-action-primary-solid); color: var(--color-text-on-accent); }
+  .btn-primary:hover { background: var(--color-action-primary-solid-hover); }
+  .btn-secondary { background: var(--color-action-secondary-bg); color: var(--color-action-secondary-text); }
+  .btn-outline { background: transparent; border: 1px solid var(--color-border-default); color: var(--color-text-primary); }
+  .btn-sm { height: 28px; padding: 0 var(--space-3); font-size: 12px; }
+
+  /* ---------- KPI grid ---------- */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin-bottom: var(--space-6); }
+  .kpi-card {
+    background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: var(--space-4);
+  }
+  .kpi-label { font-size: 12px; color: var(--color-text-muted); font-weight: 500; margin-bottom: var(--space-2); }
+  .kpi-value { font-family: var(--font-data); font-size: 28px; font-weight: 600; }
+  .kpi-delta { font-size: 12px; margin-top: var(--space-1); font-weight: 500; }
+  .kpi-delta.up { color: var(--color-success); }
+  .kpi-delta.down { color: var(--color-error); }
+
+  /* ---------- Panel layout ---------- */
+  .panel-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-4); margin-bottom: var(--space-6); }
+  .panel {
+    background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-4); border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .panel-header h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .panel-body { padding: var(--space-4); }
+  .panel-link { font-size: 12px; color: var(--color-action-primary); font-weight: 600; }
+
+  /* ---------- Funnel ---------- */
+  .funnel { display: flex; align-items: stretch; gap: 0; }
+  .funnel-stage { flex: 1; text-align: center; position: relative; padding: var(--space-3) var(--space-2); }
+  .funnel-stage:not(:last-child)::after {
+    content: ""; position: absolute; top: 50%; right: -1px; width: 8px; height: 8px;
+    border-top: 1px solid var(--color-border-default); border-right: 1px solid var(--color-border-default);
+    transform: translateY(-50%) rotate(45deg);
+  }
+  .funnel-stage .count { font-family: var(--font-data); font-size: 20px; font-weight: 600; display: block; }
+  .funnel-stage .label { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+  .funnel-stage.active .count { color: var(--color-action-primary); }
+  .funnel-stage.failed .count { color: var(--color-error); }
+
+  /* ---------- Badges ---------- */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: var(--radius-pill);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
+  }
+  .badge-success { background: var(--color-success-bg); color: var(--color-success); }
+  .badge-warning { background: var(--color-warning-bg); color: var(--color-warning); }
+  .badge-error { background: var(--color-error-bg); color: var(--color-error); }
+  .badge-info { background: var(--color-info-bg); color: var(--color-info); }
+  .badge-neutral { background: var(--color-bg-sunken); color: var(--color-text-secondary); }
+
+  /* ---------- Confidence indicator ---------- */
+  .confidence-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+  .confidence-badge .pct { font-family: var(--font-data); }
+  .confidence-bar-wrap { margin-top: var(--space-2); }
+  .confidence-bar-track { height: 6px; border-radius: var(--radius-pill); background: var(--color-bg-sunken); position: relative; overflow: visible; }
+  .confidence-bar-fill { height: 100%; border-radius: var(--radius-pill); }
+  .confidence-threshold-tick {
+    position: absolute; top: -3px; width: 2px; height: 12px; background: var(--color-text-muted);
+  }
+  .confidence-scale-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-text-muted); margin-top: 4px; }
+
+  /* ---------- Decision card ---------- */
+  .decision-card {
+    background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: var(--space-4);
+    margin-bottom: var(--space-3);
+  }
+  .decision-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+  .decision-card-top .left { display: flex; align-items: center; gap: var(--space-3); }
+  .decision-reason { font-size: 13px; color: var(--color-text-secondary); margin-bottom: var(--space-3); }
+  .decision-actions-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+  .decision-actions-row .action-label { color: var(--color-text-muted); }
+  .decision-actions-row .action-value { font-weight: 600; }
+  .decision-card-footer {
+    display: flex; gap: var(--space-2); margin-top: var(--space-3); padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  /* ---------- Evidence ---------- */
+  .evidence-snippet {
+    border-left: 3px solid var(--color-border-default);
+    padding: var(--space-2) var(--space-3); margin-bottom: var(--space-2);
+    font-size: 13px; color: var(--color-text-secondary);
+  }
+  .evidence-snippet .tag { display: block; margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--color-action-primary); }
+
+  .evidence-thread { display: flex; flex-direction: column; }
+  .evidence-thread-step {
+    position: relative; padding-left: var(--space-5); padding-bottom: var(--space-4);
+    border-left: 1px solid var(--color-border-default); margin-left: 4px;
+  }
+  .evidence-thread-step:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .evidence-thread-step::before {
+    content: ""; position: absolute; left: -4.5px; top: 2px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--color-action-primary-solid);
+  }
+  .evidence-thread-step .role { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); font-weight: 600; margin-bottom: 2px; }
+  .evidence-thread-step .content { font-size: 13px; color: var(--color-text-primary); }
+
+  /* ---------- Decision trace ---------- */
+  .decision-trace { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border-subtle); }
+  .trace-toggle { font-size: 12px; font-weight: 600; color: var(--color-action-primary); background: none; border: none; padding: 0; display: flex; align-items: center; gap: 4px; }
+  .trace-steps { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+  .trace-step { display: flex; gap: var(--space-3); }
+  .trace-step .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-action-primary-solid); margin-top: 6px; flex-shrink: 0; }
+  .trace-step .label { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .trace-step .desc { font-size: 12px; color: var(--color-text-secondary); }
+
+  /* ---------- Outcome card ---------- */
+  .outcome-card { background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: var(--space-4); }
+
+  /* ---------- Table ---------- */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table thead th {
+    text-align: left; font-weight: 500; color: var(--color-text-secondary);
+    background: var(--color-bg-sunken); padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border-default);
+  }
+  .data-table td { padding: var(--space-3); border-bottom: 1px solid var(--color-border-subtle); }
+  .data-table tbody tr:hover { background: var(--color-bg-sunken); }
+  .data-table .num { font-family: var(--font-data); text-align: right; }
+
+  /* ---------- Filter bar ---------- */
+  .filter-bar { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--color-border-default); border-radius: var(--radius-sm);
+    padding: 6px 10px; font-size: 12px; color: var(--color-text-secondary); background: var(--color-bg-surface);
+  }
+  .filter-chip.active { border-color: var(--color-action-primary); color: var(--color-action-primary); background: var(--color-action-secondary-bg); font-weight: 600; }
+
+  /* ---------- AI state banner ---------- */
+  .ai-state-banner {
+    display: flex; align-items: center; gap: var(--space-2);
+    background: var(--color-bg-sunken); border-left: 3px solid var(--color-info);
+    padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: var(--space-3);
+  }
+  .ai-state-banner .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-info); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ---------- Strategy teaser ---------- */
+  .teaser-panel {
+    border: 1px dashed var(--color-border-default); border-radius: var(--radius-md);
+    padding: var(--space-6); text-align: left; color: var(--color-text-secondary);
+  }
+  .teaser-panel h3 { color: var(--color-text-primary); font-size: 14px; margin: 0 0 var(--space-2) 0; }
+  .teaser-panel p { font-size: 13px; margin: 0; max-width: 480px; }
+
+  /* ---------- Empty / error / loading ---------- */
+  .state-block { text-align: center; padding: var(--space-10) var(--space-4); color: var(--color-text-secondary); }
+  .state-block .icon { width: 32px; height: 32px; margin: 0 auto var(--space-3); color: var(--color-text-muted); }
+  .state-block h3 { font-size: 14px; color: var(--color-text-primary); margin: 0 0 4px 0; }
+  .state-block p { font-size: 13px; margin: 0 0 var(--space-4) 0; }
+
+  .skeleton-row { display: flex; gap: var(--space-3); padding: var(--space-3); align-items: center; }
+  .skeleton-block { height: 12px; border-radius: 4px; background: var(--color-bg-sunken); animation: shimmer 1.5s infinite; }
+  @keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  .error-inline { display: flex; align-items: center; justify-content: space-between; background: var(--color-error-bg); color: var(--color-error); border-radius: var(--radius-sm); padding: var(--space-3); font-size: 12px; font-weight: 500; }
+  .error-inline button { background: none; border: none; color: var(--color-error); font-weight: 700; font-size: 12px; }
+
+  .section-title { font-size: 13px; font-weight: 600; color: var(--color-text-muted); margin: var(--space-6) 0 var(--space-3); text-transform: uppercase; letter-spacing: 0.03em; }
+  .section-title:first-child { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="mark">IC</div>
+      <div class="name">IntelliCall</div>
+    </div>
+
+    <nav class="nav-section">
+      <a class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</a>
+      <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>Leads</a>
+      <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>Campaigns</a>
+      <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Agents</a>
+      <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 3a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.2-1.3a2 2 0 0 1 2.1-.5c1 .3 2 .5 3 .7a2 2 0 0 1 1.7 2z"/></svg>Calls</a>
+      <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Decisions</a>
+      <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>Outcomes</a>
+      <a class="nav-item muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Strategies<span class="nav-tag">Later</span></a>
+      <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="theme-toggle" onclick="toggleTheme()">
+        <span id="theme-icon">🌙</span>
+        <span id="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="search-input">Search leads, calls, decisions…</div>
+      <div class="topbar-right">
+        <span>Acme Outbound</span>
+        <div class="avatar">JR</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="page-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Operational and decision-intelligence overview for Acme Outbound.</p>
+        </div>
+        <button class="btn btn-primary">Create campaign</button>
+      </div>
+
+      <!-- KPI GRID -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Calls made</div>
+          <div class="kpi-value">1,284</div>
+          <div class="kpi-delta up">+8.2% vs last week</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Qualification rate</div>
+          <div class="kpi-value">42.1%</div>
+          <div class="kpi-delta up">+3.4% vs last week</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Meetings booked</div>
+          <div class="kpi-value">96</div>
+          <div class="kpi-delta down">-2 vs last week</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Decision accuracy</div>
+          <div class="kpi-value">88.7%</div>
+          <div class="kpi-delta up">predicted vs. converted</div>
+        </div>
+      </div>
+
+      <!-- PANEL ROW: Recent decisions + Campaign performance -->
+      <div class="panel-row">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Recent decisions</h2>
+            <a class="panel-link">View all →</a>
+          </div>
+          <div class="panel-body">
+
+            <div class="ai-state-banner">
+              <span class="pulse-dot"></span>
+              DECISION PENDING — analyzing call with Maria Chen
+            </div>
+
+            <!-- Decision card 1: review required -->
+            <div class="decision-card">
+              <div class="decision-card-top">
+                <div class="left">
+                  <span class="badge badge-warning">Review required</span>
+                  <div class="confidence-badge">
+                    <span class="pct mono" style="color: var(--color-warning);">67%</span>
+                    <span style="color: var(--color-text-muted);">MEDIUM</span>
+                  </div>
+                </div>
+                <span style="font-size: 12px; color: var(--color-text-muted);">Daniel Okafor — Northwind Logistics</span>
+              </div>
+              <div class="decision-reason">Prospect expressed interest but budget confirmation was ambiguous — flagged for human review before booking.</div>
+
+              <div class="evidence-snippet">
+                "We'd probably need to check with finance before committing to anything this quarter."
+                <span class="tag">Signal: budget uncertain</span>
+              </div>
+
+              <div class="decision-actions-row">
+                <div><span class="action-label">Recommended: </span><span class="action-value">Book meeting</span></div>
+                <div><span class="action-label">Actual: </span><span class="action-value" style="color: var(--color-text-muted);">Pending review</span></div>
+              </div>
+
+              <div class="decision-card-footer">
+                <button class="btn btn-sm btn-primary">Approve</button>
+                <button class="btn btn-sm btn-outline">Override</button>
+                <button class="btn btn-sm btn-secondary" onclick="toggleTrace(this)">View trace</button>
+              </div>
+
+              <div class="decision-trace" style="display:none;">
+                <div class="trace-steps">
+                  <div class="trace-step">
+                    <div class="dot"></div>
+                    <div>
+                      <div class="label">Detected signal</div>
+                      <div class="desc">"Check with finance" → tagged as budget uncertainty, weight: medium-high</div>
+                    </div>
+                  </div>
+                  <div class="trace-step">
+                    <div class="dot"></div>
+                    <div>
+                      <div class="label">Cross-referenced known information</div>
+                      <div class="desc">Company size (210 employees) suggests budget authority likely exists but wasn't confirmed directly</div>
+                    </div>
+                  </div>
+                  <div class="trace-step">
+                    <div class="dot"></div>
+                    <div>
+                      <div class="label">Confidence calculated</div>
+                      <div class="desc">67% — below the 80% auto-action threshold set for this campaign</div>
+                    </div>
+                  </div>
+                  <div class="trace-step">
+                    <div class="dot"></div>
+                    <div>
+                      <div class="label">Routed to review</div>
+                      <div class="desc">Recommended action held for human approval rather than executed automatically</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Decision card 2: high confidence, auto-executed -->
+            <div class="decision-card">
+              <div class="decision-card-top">
+                <div class="left">
+                  <span class="badge badge-success">Qualified</span>
+                  <div class="confidence-badge">
+                    <span class="pct mono" style="color: var(--color-success);">94%</span>
+                    <span style="color: var(--color-text-muted);">HIGH</span>
+                  </div>
+                </div>
+                <span style="font-size: 12px; color: var(--color-text-muted);">Priya Nair — Fieldstone Retail</span>
+              </div>
+              <div class="decision-reason">Clear buying intent and confirmed budget — meeting booked automatically per campaign threshold.</div>
+
+              <div class="evidence-snippet">
+                "Yes, we've already allocated budget for this — can we get something on the calendar this week?"
+                <span class="tag">Signal: budget confirmed, urgency high</span>
+              </div>
+
+              <div class="decision-actions-row">
+                <div><span class="action-label">Recommended: </span><span class="action-value">Book meeting</span></div>
+                <div><span class="action-label">Actual: </span><span class="action-value" style="color: var(--color-success);">Executed by Resonology AI</span></div>
+              </div>
+
+              <div class="decision-card-footer">
+                <button class="btn btn-sm btn-secondary" onclick="toggleTrace(this)">View trace</button>
+              </div>
+              <div class="decision-trace" style="display:none;">
+                <div class="trace-steps">
+                  <div class="trace-step"><div class="dot"></div><div><div class="label">Detected signal</div><div class="desc">"Already allocated budget" → budget confirmed, weight: high</div></div></div>
+                  <div class="trace-step"><div class="dot"></div><div><div class="label">Detected signal</div><div class="desc">"This week" → urgency high, weight: medium</div></div></div>
+                  <div class="trace-step"><div class="dot"></div><div><div class="label">Confidence calculated</div><div class="desc">94% — above the 80% auto-action threshold</div></div></div>
+                  <div class="trace-step"><div class="dot"></div><div><div class="label">Action executed</div><div class="desc">Meeting booked automatically, lead status updated to Qualified</div></div></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Campaign performance</h2>
+            <a class="panel-link">View all →</a>
+          </div>
+          <div class="panel-body">
+            <svg viewBox="0 0 320 160" width="100%" height="160">
+              <line x1="0" y1="140" x2="320" y2="140" stroke="var(--color-border-subtle)" />
+              <g>
+                <rect x="10"  y="60"  width="34" height="80" rx="3" fill="var(--color-action-primary-solid)"></rect>
+                <rect x="64"  y="90"  width="34" height="50" rx="3" fill="var(--color-action-primary-solid)"></rect>
+                <rect x="118" y="40"  width="34" height="100" rx="3" fill="var(--color-action-primary-solid)"></rect>
+                <rect x="172" y="105" width="34" height="35" rx="3" fill="var(--color-action-primary-solid)"></rect>
+                <rect x="226" y="70"  width="34" height="70" rx="3" fill="var(--color-action-primary-solid)"></rect>
+                <rect x="280" y="55"  width="34" height="85" rx="3" fill="var(--color-action-primary-solid)"></rect>
+              </g>
+              <text x="27"  y="154" font-size="9" fill="var(--color-text-muted)" font-family="IBM Plex Sans" text-anchor="middle">SMB</text>
+              <text x="81"  y="154" font-size="9" fill="var(--color-text-muted)" font-family="IBM Plex Sans" text-anchor="middle">Mid</text>
+              <text x="135" y="154" font-size="9" fill="var(--color-text-muted)" font-family="IBM Plex Sans" text-anchor="middle">Ent.</text>
+              <text x="189" y="154" font-size="9" fill="var(--color-text-muted)" font-family="IBM Plex Sans" text-anchor="middle">Trial</text>
+              <text x="243" y="154" font-size="9" fill="var(--color-text-muted)" font-family="IBM Plex Sans" text-anchor="middle">Q4</text>
+              <text x="297" y="154" font-size="9" fill="var(--color-text-muted)" font-family="IBM Plex Sans" text-anchor="middle">Reneg.</text>
+            </svg>
+            <div style="font-size:11px; color: var(--color-text-muted); text-align:center; margin-top: 4px;">Qualification rate by campaign</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OUTCOME FUNNEL -->
+      <div class="section-title">Outcomes</div>
+      <div class="panel" style="margin-bottom: var(--space-6);">
+        <div class="panel-header">
+          <h2>Decision → Outcome funnel</h2>
+          <div class="filter-bar" style="margin: 0;">
+            <span class="filter-chip active">All campaigns</span>
+            <span class="filter-chip">Last 30 days</span>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="funnel">
+            <div class="funnel-stage active"><span class="count mono">540</span><span class="label">Qualified</span></div>
+            <div class="funnel-stage active"><span class="count mono">312</span><span class="label">Meeting booked</span></div>
+            <div class="funnel-stage active"><span class="count mono">248</span><span class="label">Meeting attended</span></div>
+            <div class="funnel-stage active"><span class="count mono">140</span><span class="label">Opportunity</span></div>
+            <div class="funnel-stage failed"><span class="count mono">61</span><span class="label">Converted</span></div>
+          </div>
+
+          <div class="outcome-card" style="margin-top: var(--space-4);">
+            <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: var(--space-3);">
+              <span style="font-size:13px; font-weight:600;">Priya Nair — Fieldstone Retail</span>
+              <a class="panel-link">View decision →</a>
+            </div>
+            <div class="funnel">
+              <div class="funnel-stage active"><span class="count mono">✓</span><span class="label">Qualified</span></div>
+              <div class="funnel-stage active"><span class="count mono">✓</span><span class="label">Booked</span></div>
+              <div class="funnel-stage active"><span class="count mono">✓</span><span class="label">Attended</span></div>
+              <div class="funnel-stage"><span class="count mono">–</span><span class="label">Opportunity</span></div>
+              <div class="funnel-stage"><span class="count mono">–</span><span class="label">Converted</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STRATEGIES TEASER -->
+      <div class="section-title">Strategies</div>
+      <div class="teaser-panel" style="margin-bottom: var(--space-6);">
+        <h3>Strategy comparison — coming later</h3>
+        <p>Once enough outcome data has been collected, IntelliCall will compare conversation strategies (direct qualification, problem-first discovery, value-first discovery) against real conversion outcomes — not just call volume. This view will unlock automatically as your campaigns generate more resolved outcomes.</p>
+      </div>
+
+      <!-- DECISIONS LEDGER TABLE -->
+      <div class="section-title">Decisions ledger — review required</div>
+      <div class="filter-bar">
+        <span class="filter-chip active">Review required</span>
+        <span class="filter-chip">Auto-executed</span>
+        <span class="filter-chip">Overridden</span>
+        <span class="filter-chip">All campaigns</span>
+      </div>
+      <div class="panel" style="margin-bottom: var(--space-6); overflow: hidden;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Lead</th>
+              <th>Campaign</th>
+              <th>Decision</th>
+              <th>Confidence</th>
+              <th>Recommended action</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Daniel Okafor</td>
+              <td>Mid-market Q3</td>
+              <td><span class="badge badge-warning">Review</span></td>
+              <td class="num">67%</td>
+              <td>Book meeting</td>
+              <td><button class="btn btn-sm btn-primary">Approve</button></td>
+            </tr>
+            <tr>
+              <td>Wei Zhang</td>
+              <td>Enterprise outreach</td>
+              <td><span class="badge badge-warning">Review</span></td>
+              <td class="num">58%</td>
+              <td>Send follow-up</td>
+              <td><button class="btn btn-sm btn-primary">Approve</button></td>
+            </tr>
+            <tr>
+              <td>Sofia Marchetti</td>
+              <td>Trial conversions</td>
+              <td><span class="badge badge-warning">Review</span></td>
+              <td class="num">71%</td>
+              <td>Book meeting</td>
+              <td><button class="btn btn-sm btn-primary">Approve</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- COMPONENT STATE GALLERY -->
+      <div class="section-title">Reference states</div>
+      <div class="panel-row">
+        <div class="panel">
+          <div class="panel-header"><h2>Loading — Calls list</h2></div>
+          <div class="panel-body">
+            <div class="skeleton-row"><div class="skeleton-block" style="width:24px;height:24px;border-radius:50%;"></div><div class="skeleton-block" style="width:120px;"></div><div class="skeleton-block" style="width:80px;"></div><div class="skeleton-block" style="width:60px; margin-left:auto;"></div></div>
+            <div class="skeleton-row"><div class="skeleton-block" style="width:24px;height:24px;border-radius:50%;"></div><div class="skeleton-block" style="width:160px;"></div><div class="skeleton-block" style="width:80px;"></div><div class="skeleton-block" style="width:60px; margin-left:auto;"></div></div>
+            <div class="skeleton-row"><div class="skeleton-block" style="width:24px;height:24px;border-radius:50%;"></div><div class="skeleton-block" style="width:100px;"></div><div class="skeleton-block" style="width:80px;"></div><div class="skeleton-block" style="width:60px; margin-left:auto;"></div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><h2>Empty — Leads</h2></div>
+          <div class="panel-body">
+            <div class="state-block">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
+              <h3>No leads yet</h3>
+              <p>Import your first leads to start a campaign.</p>
+              <button class="btn btn-sm btn-primary">Import leads</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom: var(--space-8);">
+        <div class="panel-header"><h2>Error — inline</h2></div>
+        <div class="panel-body">
+          <div class="error-inline">
+            <span>Couldn't load recent calls.</span>
+            <button>Retry</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('theme-icon').textContent = isDark ? '🌙' : '☀️';
+    document.getElementById('theme-label').textContent = isDark ? 'Dark mode' : 'Light mode';
+  }
+
+  // Match system preference on first load
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('theme-icon').textContent = '☀️';
+    document.getElementById('theme-label').textContent = 'Light mode';
+  }
+
+  function toggleTrace(btn) {
+    const card = btn.closest('.decision-card');
+    const trace = card.querySelector('.decision-trace');
+    trace.style.display = trace.style.display === 'none' ? 'block' : 'none';
+  }
+</script>
+
+</body>
+</html>

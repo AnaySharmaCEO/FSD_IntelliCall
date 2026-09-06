@@ -1,0 +1,10 @@
+{
+  "description": "IntelliCall streamlines communication for businesses by providing an intuitive platform for managing calls and messages, enhancing productivity and collaboration.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
