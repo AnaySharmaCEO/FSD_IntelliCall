@@ -44,3 +44,11 @@ test-results/
 
 # Docker overrides
 docker-compose.override.yml
+
+# Supabase CLI local artifacts & connection cache
+.temp/
+supabase/.temp/
+
+# Supabase Proprietary Backend Core Business Logic (Secret Sauce)
+# Keeps proprietary AI conversation intelligence, decision algorithms, and webhook orchestration private
+supabase/functions/

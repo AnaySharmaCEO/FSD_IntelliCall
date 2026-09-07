@@ -1,103 +1,73 @@
-// AuthPage — Sign in & Sign up for IntelliCall.
-// Primary options:
-// 1. Email/Password (Sign in verifies directly; Sign up requires 6-digit OTP verification -> Onboarding)
-// 2. Sign in with Google (branded SSO -> Onboarding if new, Dashboard if returning)
-// 3. Sign in with Microsoft (branded SSO -> Onboarding if new, Dashboard if returning)
+// AuthPage — Authentication for IntelliCall.
+// Email/Password sign up -> directly authenticates into /onboarding (confirm email disabled in Supabase).
+// Subsequent sign ins -> email/password authentication into /dashboard (or /onboarding if not completed).
+// Password reset via emailed recovery link.
+// (OTP verification system is commented out on the backside for future use).
 
-import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase";
 
-type AuthMode = "signin" | "signup" | "otp";
+type AuthMode = "signin" | "signup" | "forgot-password" | "reset-password";
+// type AuthModeWithOtp = AuthMode | "confirm-email" | "otp"; // [BACKSIDE OTP PRESERVED]
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const {
+    user,
+    session,
+    organization,
+    onboardingCompleted,
+    signIn,
+    signUp,
+    requestPasswordReset,
+    updatePassword,
+    // verifyOtp, // [BACKSIDE OTP PRESERVED]
+    // resendConfirmation, // [BACKSIDE OTP PRESERVED]
+  } = useAuth();
 
-  const initialMode: AuthMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
+  const paramMode = searchParams.get("mode") as AuthMode;
+  const initialMode: AuthMode =
+    paramMode === "signup"
+      ? "signup"
+      : paramMode === "forgot-password"
+      ? "forgot-password"
+      : paramMode === "reset-password"
+      ? "reset-password"
+      : "signin";
+
   const [mode, setMode] = useState<AuthMode>(initialMode);
 
   // Form states
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
-  // OTP states
+  /* [BACKSIDE OTP SYSTEM PRESERVED FOR FUTURE USE]
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [otpResendCountdown, setOtpResendCountdown] = useState(30);
   const otpInputs = useRef<(HTMLInputElement | null)[]>([]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (mode === "otp" && otpResendCountdown > 0) {
-      timer = setInterval(() => {
-        setOtpResendCountdown(c => c - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [mode, otpResendCountdown]);
-
-  // Handle email sign in
-  const handleSignIn = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    if (!email.trim() || !password) {
-      setError("Please fill in both email and password.");
-      return;
-    }
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      localStorage.setItem("intellicall_auth_token", "sample_token_" + Date.now());
-      localStorage.setItem("intellicall_user_email", email);
-      toast("Signed in successfully.");
-      navigate("/dashboard");
-    }, 650);
-  };
-
-  // Handle email sign up -> move to OTP
-  const handleSignUp = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    if (!email.trim() || !password || !confirmPassword) {
-      setError("Please fill in all required fields.");
-      return;
-    }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setMode("otp");
-      setOtp(["", "", "", "", "", ""]);
-      setOtpResendCountdown(30);
-      toast("Verification code sent to " + email);
-      setTimeout(() => {
-        otpInputs.current[0]?.focus();
-      }, 100);
-    }, 600);
-  };
-
-  // Handle OTP input change
   const handleOtpChange = (index: number, val: string) => {
     if (!/^\d*$/.test(val)) return;
     const cleanChar = val.slice(-1);
     const nextOtp = [...otp];
     nextOtp[index] = cleanChar;
     setOtp(nextOtp);
-
     if (cleanChar && index < 5) {
       otpInputs.current[index + 1]?.focus();
     }
@@ -109,64 +79,213 @@ export default function AuthPage() {
     }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const fullOtp = otp.join("");
     if (fullOtp.length < 6) {
       setError("Please enter the complete 6-digit verification code.");
       return;
     }
+    setLoading(true);
+    const { error: otpErr } = await verifyOtp(email, fullOtp, "signup");
+    setLoading(false);
+    if (otpErr) {
+      setError(otpErr.message);
+      return;
+    }
+    toast("Email verified successfully.");
+    navigate("/onboarding");
+  };
+  */
+
+  // Recovery token state
+  const [recoverySessionValid, setRecoverySessionValid] = useState<boolean | null>(null);
+
+  // Redirect if already authenticated and not in reset-password flow
+  useEffect(() => {
+    if (session && user && mode !== "reset-password") {
+      const from = (location.state as any)?.from?.pathname;
+      if (from && from !== "/signin" && from !== "/signup" && from !== "/auth") {
+        navigate(from, { replace: true });
+      } else if (!organization || !onboardingCompleted) {
+        navigate("/onboarding", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    }
+  }, [session, user, organization, onboardingCompleted, mode, navigate, location.state]);
+
+  // Sync mode changes with search params
+  useEffect(() => {
+    if (paramMode && paramMode !== mode) {
+      setMode(paramMode);
+    }
+  }, [paramMode]);
+
+  const switchMode = (newMode: AuthMode) => {
+    setMode(newMode);
     setError(null);
-    setLoading(true);
-
-    setTimeout(() => {
-      setLoading(false);
-      localStorage.setItem("intellicall_auth_token", "sample_token_" + Date.now());
-      localStorage.setItem("intellicall_user_email", email);
-      toast("Account verified successfully.");
-      // New accounts go through onboarding
-      navigate("/onboarding");
-    }, 700);
+    setSuccessNotice(null);
+    setSearchParams({ mode: newMode });
   };
 
-  const handleResendOtp = () => {
-    if (otpResendCountdown > 0) return;
-    setOtpResendCountdown(30);
-    toast("A new 6-digit verification code was sent.");
+  // Check recovery session on reset-password mode
+  useEffect(() => {
+    if (mode === "reset-password") {
+      supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+        if (currentSession) {
+          setRecoverySessionValid(true);
+        } else {
+          const hash = window.location.hash;
+          if (hash && hash.includes("type=recovery")) {
+            setRecoverySessionValid(true);
+          } else {
+            setRecoverySessionValid(false);
+          }
+        }
+      });
+    }
+  }, [mode]);
+
+  // ==========================================================================
+  // SIGN IN (Direct Password-based)
+  // ==========================================================================
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessNotice(null);
+
+    if (!email.trim() || !password) {
+      setError("Please fill in both email and password.");
+      return;
+    }
+
+    setLoading(true);
+    const { error: signInErr } = await signIn(email, password);
+    setLoading(false);
+
+    if (signInErr) {
+      setError(signInErr.message);
+      return;
+    }
+
+    toast("Signed in successfully.");
   };
 
-  // Google SSO handler
-  const handleGoogleSSO = () => {
+  // ==========================================================================
+  // SIGN UP (Direct Password-based -> Immediate Onboarding)
+  // ==========================================================================
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessNotice(null);
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password || !confirmPassword) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
+    const { error: signUpErr, session: newSession } = await signUp(trimmedEmail, password, name);
+
+    if (signUpErr) {
       setLoading(false);
-      const isFirstTime = !localStorage.getItem("intellicall_has_onboarded");
-      localStorage.setItem("intellicall_auth_token", "google_sso_" + Date.now());
-      localStorage.setItem("intellicall_user_email", "google.user@example.com");
-      toast("Signed in with Google.");
-      if (isFirstTime) {
-        navigate("/onboarding");
-      } else {
-        navigate("/dashboard");
+      setError(signUpErr.message);
+      return;
+    }
+
+    // If session was not immediately returned, sign in directly with password
+    if (!newSession) {
+      const { error: signInErr } = await signIn(trimmedEmail, password);
+      if (signInErr) {
+        setLoading(false);
+        setError(signInErr.message);
+        return;
       }
-    }, 500);
+    }
+
+    setLoading(false);
+    toast("Account created successfully. Let's set up your workspace.");
+    navigate("/onboarding");
   };
 
-  // Microsoft SSO handler
-  const handleMicrosoftSSO = () => {
+  // ==========================================================================
+  // PASSWORD RESET REQUEST
+  // ==========================================================================
+  const handleRequestPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessNotice(null);
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError("Please enter your email address.");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      const isFirstTime = !localStorage.getItem("intellicall_has_onboarded");
-      localStorage.setItem("intellicall_auth_token", "microsoft_sso_" + Date.now());
-      localStorage.setItem("intellicall_user_email", "microsoft.user@example.com");
-      toast("Signed in with Microsoft.");
-      if (isFirstTime) {
-        navigate("/onboarding");
-      } else {
-        navigate("/dashboard");
-      }
-    }, 500);
+    const { error: resetErr } = await requestPasswordReset(trimmedEmail);
+    setLoading(false);
+
+    if (resetErr) {
+      setError("Unable to process password reset. Please verify the email and try again.");
+      return;
+    }
+
+    setSuccessNotice("Password reset instructions have been sent to " + trimmedEmail);
+  };
+
+  // ==========================================================================
+  // SET NEW PASSWORD (from recovery link)
+  // ==========================================================================
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!newPassword || !confirmNewPassword) {
+      setError("Please fill in both password fields.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    const { error: updateErr } = await updatePassword(newPassword);
+    setLoading(false);
+
+    if (updateErr) {
+      setError(updateErr.message || "Failed to update password. The reset link may be expired.");
+      return;
+    }
+
+    toast("Password updated successfully. Please sign in with your new password.");
+    switchMode("signin");
   };
 
   return (
@@ -197,16 +316,45 @@ export default function AuthPage() {
           boxShadow: "var(--shadow-md)",
         }}
       >
-        {mode !== "otp" ? (
+        {/* Error notification */}
+        {error && (
+          <div
+            className="p-3 mb-4 rounded-[var(--radius-sm)] text-[12px] flex items-start gap-2.5"
+            style={{ background: "var(--color-error-bg)", color: "var(--color-error)" }}
+          >
+            <svg className="flex-shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <div className="flex-1">
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Success notification */}
+        {successNotice && (
+          <div
+            className="p-3 mb-4 rounded-[var(--radius-sm)] text-[12px] flex items-center gap-2"
+            style={{ background: "var(--color-success-bg)", color: "var(--color-success)" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span>{successNotice}</span>
+          </div>
+        )}
+
+        {/* MODE: Sign In or Sign Up */}
+        {(mode === "signin" || mode === "signup") && (
           <>
             {/* Mode switch tabs */}
             <div className="flex rounded-[var(--radius-sm)] p-1 bg-[var(--color-bg-sunken)] mb-6">
               <button
                 type="button"
-                onClick={() => {
-                  setMode("signin");
-                  setError(null);
-                }}
+                onClick={() => switchMode("signin")}
                 className={[
                   "flex-1 py-1.5 text-[13px] font-semibold rounded-[var(--radius-sm)] transition-all",
                   mode === "signin"
@@ -218,10 +366,7 @@ export default function AuthPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setMode("signup");
-                  setError(null);
-                }}
+                onClick={() => switchMode("signup")}
                 className={[
                   "flex-1 py-1.5 text-[13px] font-semibold rounded-[var(--radius-sm)] transition-all",
                   mode === "signup"
@@ -233,85 +378,7 @@ export default function AuthPage() {
               </button>
             </div>
 
-            {/* SSO Primary Providers */}
-            <div className="flex flex-col gap-2.5 mb-6">
-              {/* Google SSO Button */}
-              <button
-                type="button"
-                onClick={handleGoogleSSO}
-                disabled={loading}
-                className="w-full h-11 px-4 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-sunken)] transition-colors flex items-center justify-center gap-3 text-[14px] font-semibold text-[var(--color-text-primary)] disabled:opacity-50"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-                <span>{mode === "signin" ? "Sign in with Google" : "Sign up with Google"}</span>
-              </button>
-
-              {/* Microsoft SSO Button */}
-              <button
-                type="button"
-                onClick={handleMicrosoftSSO}
-                disabled={loading}
-                className="w-full h-11 px-4 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-sunken)] transition-colors flex items-center justify-center gap-3 text-[14px] font-semibold text-[var(--color-text-primary)] disabled:opacity-50"
-              >
-                <svg width="18" height="18" viewBox="0 0 21 21">
-                  <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-                  <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-                  <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-                  <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-                </svg>
-                <span>{mode === "signin" ? "Sign in with Microsoft" : "Sign up with Microsoft"}</span>
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="relative my-6 text-center">
-              <div
-                className="absolute inset-0 flex items-center"
-                aria-hidden="true"
-              >
-                <div className="w-full border-t border-[var(--color-border-subtle)]" />
-              </div>
-              <span
-                className="relative px-3 text-[11px] uppercase tracking-wider bg-[var(--color-bg-surface)]"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                or continue with email
-              </span>
-            </div>
-
-            {/* Error message */}
-            {error && (
-              <div
-                className="p-3 mb-4 rounded-[var(--radius-sm)] text-[12px] flex items-center gap-2"
-                style={{ background: "var(--color-error-bg)", color: "var(--color-error)" }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>{error}</span>
-              </div>
-            )}
-
-            {/* Form */}
+            {/* DIRECT PASSWORD-BASED SIGN IN */}
             {mode === "signin" ? (
               <form onSubmit={handleSignIn} className="flex flex-col gap-4">
                 <Input
@@ -322,20 +389,41 @@ export default function AuthPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                 />
-                <Input
-                  label="Password"
-                  type="password"
-                  required
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[13px] font-medium text-[var(--color-text-secondary)]">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => switchMode("forgot-password")}
+                      className="text-[12px] hover:underline"
+                      style={{ color: "var(--color-action-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full h-9 px-3 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] text-[13px] focus:outline-none focus:border-[var(--color-action-primary)] transition-colors"
+                  />
+                </div>
                 <Button type="submit" size="lg" loading={loading} className="w-full justify-center mt-2">
                   Sign in
                 </Button>
               </form>
             ) : (
+              /* DIRECT SIGN UP WITH PASSWORD -> ONBOARDING */
               <form onSubmit={handleSignUp} className="flex flex-col gap-4">
+                <Input
+                  label="Your name"
+                  type="text"
+                  placeholder="Jane Doe"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                />
                 <Input
                   label="Work email"
                   type="email"
@@ -362,87 +450,133 @@ export default function AuthPage() {
                   onChange={e => setConfirmPassword(e.target.value)}
                 />
                 <Button type="submit" size="lg" loading={loading} className="w-full justify-center mt-2">
-                  Continue to verification →
+                  Create account & Continue →
                 </Button>
               </form>
             )}
           </>
-        ) : (
-          /* OTP Verification Screen */
+        )}
+
+        {/* 
+        // ====================================================================
+        // [BACKSIDE OTP & CONFIRM EMAIL UI PRESERVED FOR FUTURE RE-ENABLING]
+        // ====================================================================
+        // {mode === "confirm-email" && (
+        //   <div className="flex flex-col gap-4 text-center">
+        //     <div className="w-14 h-14 rounded-full mx-auto mb-2 flex items-center justify-center bg-[var(--color-action-secondary-bg)] text-[var(--color-action-primary)]">
+        //       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+        //     </div>
+        //     <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Check your inbox</h2>
+        //     <p className="text-[13px] text-[var(--color-text-secondary)]">We sent a confirmation link to <strong>{email}</strong>.</p>
+        //     <Button type="button" variant="secondary" onClick={handleResendConfirmation}>Resend confirmation email</Button>
+        //   </div>
+        // )}
+        //
+        // {mode === "otp" && (
+        //   <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
+        //     <div className="flex justify-between gap-2">
+        //       {otp.map((digit, idx) => (
+        //         <input key={idx} ref={el => (otpInputs.current[idx] = el)} maxLength={1} value={digit} onChange={e => handleOtpChange(idx, e.target.value)} className="w-12 h-13 text-center text-[20px] font-mono" />
+        //       ))}
+        //     </div>
+        //     <Button type="submit">Verify Code</Button>
+        //   </form>
+        // )}
+        */}
+
+        {/* MODE: Forgot Password */}
+        {mode === "forgot-password" && (
           <div className="flex flex-col gap-4">
-            <div className="text-center mb-2">
-              <div
-                className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center"
-                style={{ background: "var(--color-action-secondary-bg)", color: "var(--color-action-primary)" }}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-              </div>
-              <h2 className="text-[17px] font-semibold text-[var(--color-text-primary)]">
-                Check your inbox
+            <div>
+              <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)] mb-1">
+                Reset your password
               </h2>
-              <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-                We sent a 6-digit code to <strong className="text-[var(--color-text-primary)]">{email}</strong>
+              <p className="text-[13px] text-[var(--color-text-secondary)]">
+                Enter your work email and we will send you a link to reset your password.
               </p>
             </div>
 
-            {error && (
-              <div
-                className="p-3 rounded-[var(--radius-sm)] text-[12px] text-center"
-                style={{ background: "var(--color-error-bg)", color: "var(--color-error)" }}
-              >
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleVerifyOtp} className="flex flex-col gap-5 mt-2">
-              {/* 6 OTP boxes */}
-              <div className="flex justify-between gap-2">
-                {otp.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    ref={el => (otpInputs.current[idx] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    value={digit}
-                    onChange={e => handleOtpChange(idx, e.target.value)}
-                    onKeyDown={e => handleOtpKeyDown(idx, e)}
-                    className="w-12 h-13 text-center text-[20px] font-mono font-semibold rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-action-primary)] focus:ring-2 focus:ring-[var(--color-action-primary)]/20"
-                  />
-                ))}
-              </div>
-
+            <form onSubmit={handleRequestPasswordReset} className="flex flex-col gap-4 mt-2">
+              <Input
+                label="Work email"
+                type="email"
+                required
+                placeholder="name@company.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
               <Button type="submit" size="lg" loading={loading} className="w-full justify-center">
-                Verify and proceed →
+                Send reset link
               </Button>
-
-              <div className="flex items-center justify-between text-[12px] pt-2 border-t border-[var(--color-border-subtle)]">
+              <div className="text-center mt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode("signup");
-                    setError(null);
-                  }}
-                  className="hover:underline"
-                  style={{ color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer" }}
+                  onClick={() => switchMode("signin")}
+                  className="text-[12px] hover:underline"
+                  style={{ color: "var(--color-action-primary)", background: "none", border: "none", cursor: "pointer" }}
                 >
-                  ← Change email
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={otpResendCountdown > 0}
-                  className="hover:underline disabled:opacity-50"
-                  style={{ color: "var(--color-action-primary)", background: "none", border: "none", cursor: otpResendCountdown > 0 ? "default" : "pointer" }}
-                >
-                  {otpResendCountdown > 0 ? `Resend code in ${otpResendCountdown}s` : "Resend code"}
+                  ← Back to sign in
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* MODE: Reset Password (via emailed link) */}
+        {mode === "reset-password" && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)] mb-1">
+                Set a new password
+              </h2>
+              <p className="text-[13px] text-[var(--color-text-secondary)]">
+                Create a strong password of at least 8 characters.
+              </p>
+            </div>
+
+            {recoverySessionValid === false ? (
+              <div className="text-center py-4">
+                <p className="text-[13px] text-[var(--color-error)] mb-4">
+                  This password reset link is invalid or has expired.
+                </p>
+                <Button onClick={() => switchMode("forgot-password")} variant="secondary" className="w-full justify-center">
+                  Request a new reset link
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4 mt-2">
+                <Input
+                  label="New password"
+                  type="password"
+                  required
+                  hint="Minimum 8 characters"
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                />
+                <Input
+                  label="Confirm new password"
+                  type="password"
+                  required
+                  placeholder="Re-enter new password"
+                  value={confirmNewPassword}
+                  onChange={e => setConfirmNewPassword(e.target.value)}
+                />
+                <Button type="submit" size="lg" loading={loading} className="w-full justify-center">
+                  Update password
+                </Button>
+                <div className="text-center mt-2">
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signin")}
+                    className="text-[12px] hover:underline"
+                    style={{ color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Cancel and return to sign in
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
       </div>

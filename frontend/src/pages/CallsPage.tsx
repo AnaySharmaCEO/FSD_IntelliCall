@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useCalls } from "../hooks";
+import { useCalls, useLeads, useCampaigns, useAgents } from "../hooks";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import ErrorInline from "../components/ui/ErrorInline";
 import EmptyState from "../components/ui/EmptyState";
 import Badge from "../components/ui/Badge";
 import AIStateBanner from "../components/shared/AIStateBanner";
 import { FilterBar, FilterChip } from "../components/ui/FilterBar";
-import { mockLeads, mockCampaigns, mockAgents, mockDecisions } from "../mock";
 import type { CallStatus } from "../types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -42,6 +41,9 @@ type StatusFilter = "all" | "live" | "completed" | "failed";
 
 export default function CallsPage() {
   const { data: calls, loading, error, reload } = useCalls();
+  const { data: leads } = useLeads();
+  const { data: campaigns } = useCampaigns();
+  const { data: agents } = useAgents();
   const [filter, setFilter] = useState<StatusFilter>("all");
   const navigate = useNavigate();
 
@@ -71,7 +73,7 @@ export default function CallsPage() {
 
       {/* Live call banners */}
       {liveCalls.map(call => {
-        const lead = mockLeads.find(l => l.id === call.lead_id);
+        const lead = (leads || []).find(l => l.id === call.lead_id);
         return (
           <AIStateBanner
             key={call.id}
@@ -139,9 +141,9 @@ export default function CallsPage() {
             </thead>
             <tbody>
               {filtered.map(call => {
-                const lead     = mockLeads.find(l => l.id === call.lead_id);
-                const campaign = mockCampaigns.find(c => c.id === call.campaign_id);
-                const agent    = mockAgents.find(a => a.id === call.agent_id);
+                const lead     = (leads || []).find(l => l.id === call.lead_id);
+                const campaign = (campaigns || []).find(c => c.id === call.campaign_id);
+                const agent    = (agents || []).find(a => a.id === call.agent_id);
                 const decision = mockDecisions.find(d => d.id === call.decision_id);
                 const isLive   = ["calling", "connected", "processing"].includes(call.status);
 

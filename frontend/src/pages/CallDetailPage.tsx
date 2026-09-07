@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useState } from "react";
-import { useCall, useTranscript } from "../hooks";
+import { useCall, useTranscript, useLeads, useCampaigns, useDecisions } from "../hooks";
 import { Tabs, TabPanel } from "../components/ui/Tabs";
 import ErrorInline from "../components/ui/ErrorInline";
 import Badge from "../components/ui/Badge";
@@ -9,8 +9,6 @@ import AIStateBanner from "../components/shared/AIStateBanner";
 import EvidenceThread from "../components/shared/EvidenceThread";
 import ConversationStatePanel from "../components/shared/ConversationStatePanel";
 import { SkeletonTable } from "../components/ui/Skeleton";
-import { mockLeads, mockCampaigns, mockDecisions } from "../mock";
-import { mockConversationStates } from "../mock/conversationStates";
 import type { CallStatus, Decision } from "../types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -133,6 +131,9 @@ function TranscriptViewer({ callId }: { callId: string }) {
 export default function CallDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: call, loading, error, reload } = useCall(id ?? "");
+  const { data: allLeads } = useLeads();
+  const { data: allCampaigns } = useCampaigns();
+  const { data: allDecisions } = useDecisions();
   const [activeTab, setActiveTab] = useState("transcript");
   const [localDecision, setLocalDecision] = useState<Decision | null>(null);
 
@@ -140,10 +141,10 @@ export default function CallDetailPage() {
   if (error)   return <ErrorInline message="Couldn't load call." onRetry={reload} />;
   if (!call)   return <p style={{ color: "var(--color-text-muted)" }}>Call not found.</p>;
 
-  const lead      = mockLeads.find(l => l.id === call.lead_id);
-  const campaign  = mockCampaigns.find(c => c.id === call.campaign_id);
-  const decision  = localDecision ?? mockDecisions.find(d => d.id === call.decision_id) ?? null;
-  const convoState = mockConversationStates[call.id] ?? null;
+  const lead      = (allLeads || []).find(l => l.id === call.lead_id);
+  const campaign  = (allCampaigns || []).find(c => c.id === call.campaign_id);
+  const decision  = localDecision ?? (allDecisions || []).find(d => d.id === call.decision_id) ?? null;
+  const convoState = null;
   const isLive    = ["calling", "connected", "processing"].includes(call.status);
   const reviewRequired =
     decision?.outcome === "review_required" && decision.action_status === "pending";

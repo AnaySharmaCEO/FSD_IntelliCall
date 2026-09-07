@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useLeads } from "../hooks";
+import { useLeads, useCampaigns } from "../hooks";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import ErrorInline from "../components/ui/ErrorInline";
 import EmptyState from "../components/ui/EmptyState";
@@ -9,9 +9,9 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import ConfidenceIndicator from "../components/shared/ConfidenceIndicator";
 import CallWithAIDrawer from "../components/shared/CallWithAIDrawer";
+import CsvImportModal from "../components/leads/CsvImportModal";
 import { FilterBar, FilterChip } from "../components/ui/FilterBar";
 import type { Lead, LeadStatus, ConfidenceTier } from "../types";
-import { mockCampaigns } from "../mock";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,11 +37,13 @@ type ConfidenceFilter = "all" | ConfidenceTier;
 
 export default function LeadsPage() {
   const { data: leads, loading, error, reload } = useLeads();
+  const { data: campaigns } = useCampaigns();
   const [statusFilter,     setStatusFilter]     = useState<StatusFilter>("all");
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>("all");
   const [campaignFilter,   setCampaignFilter]   = useState("all");
   const [search,           setSearch]           = useState("");
   const [callDrawerLead,   setCallDrawerLead]   = useState<Lead | null>(null);
+  const [importModalOpen,  setImportModalOpen]  = useState(false);
   const navigate = useNavigate();
 
   const filtered = (leads ?? []).filter(l => {
@@ -63,7 +65,7 @@ export default function LeadsPage() {
             All leads across your campaigns.
           </p>
         </div>
-        <Button>Add lead</Button>
+        <Button onClick={() => setImportModalOpen(true)}>Import leads</Button>
       </div>
 
       {/* Search + filters */}
@@ -118,7 +120,7 @@ export default function LeadsPage() {
                 : "Import your first leads to start a campaign."
             }
             action={
-              !search ? { label: "Import leads", onClick: () => {} } : undefined
+              !search ? { label: "Import leads", onClick: () => setImportModalOpen(true) } : undefined
             }
           />
         ) : (
@@ -142,7 +144,7 @@ export default function LeadsPage() {
             </thead>
             <tbody>
               {filtered.map(lead => {
-                const campaign = mockCampaigns.find(c => c.id === lead.campaign_id);
+                const campaign = (campaigns || []).find(c => c.id === lead.campaign_id);
                 return (
                   <tr
                     key={lead.id}
@@ -233,6 +235,13 @@ export default function LeadsPage() {
           onCallCreated={() => setCallDrawerLead(null)}
         />
       )}
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={() => reload()}
+      />
     </div>
   );
 }

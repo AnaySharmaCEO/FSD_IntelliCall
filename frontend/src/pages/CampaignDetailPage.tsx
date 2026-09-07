@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useCampaign } from "../hooks";
+import { useCampaign, useAgents, useLeads, useCalls, useDecisions } from "../hooks";
 import ErrorInline from "../components/ui/ErrorInline";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import ConfidenceIndicator from "../components/shared/ConfidenceIndicator";
 import { SkeletonTable } from "../components/ui/Skeleton";
-import { mockAgents, mockLeads, mockCalls, mockDecisions } from "../mock";
 import type { CampaignStatus, LeadStatus } from "../types";
 
 function statusVariant(s: CampaignStatus) {
@@ -29,6 +28,10 @@ function formatDate(iso: string) {
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: campaign, loading, error, reload } = useCampaign(id ?? "");
+  const { data: agents } = useAgents();
+  const { data: allLeads } = useLeads();
+  const { data: allCalls } = useCalls();
+  const { data: allDecisions } = useDecisions();
   const navigate = useNavigate();
 
   if (loading) {
@@ -43,10 +46,10 @@ export default function CampaignDetailPage() {
   if (error) return <ErrorInline message="Couldn't load campaign." onRetry={reload} />;
   if (!campaign) return <p style={{ color: "var(--color-text-muted)" }}>Campaign not found.</p>;
 
-  const agent = mockAgents.find(a => a.id === campaign.agent_id);
-  const leads = mockLeads.filter(l => l.campaign_id === campaign.id);
-  const calls = mockCalls.filter(c => c.campaign_id === campaign.id);
-  const decisions = mockDecisions.filter(d => d.campaign_id === campaign.id);
+  const agent = (agents || []).find(a => a.id === campaign.agent_id);
+  const leads = (allLeads || []).filter(l => l.campaign_id === campaign.id);
+  const calls = (allCalls || []).filter(c => c.campaign_id === campaign.id);
+  const decisions = (allDecisions || []).filter(d => d.campaign_id === campaign.id);
   const reviewCount = decisions.filter(d => d.outcome === "review_required" && d.action_status === "pending").length;
 
   return (

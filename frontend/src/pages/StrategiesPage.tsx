@@ -1,22 +1,4 @@
-import { mockCampaigns, mockOutcomes } from "../mock";
-
-// Aggregate qualification rate by strategy type from mock campaigns
-function getStrategyStats() {
-  const map: Record<string, { total: number; qualified: number }> = {};
-  for (const c of mockCampaigns) {
-    const s = c.strategy ?? "unknown";
-    if (!map[s]) map[s] = { total: 0, qualified: 0 };
-    map[s].total += c.leads_targeted;
-    if (c.qualification_rate !== null) {
-      map[s].qualified += Math.round((c.qualification_rate / 100) * c.leads_targeted);
-    }
-  }
-  return Object.entries(map).map(([strategy, { total, qualified }]) => ({
-    strategy,
-    rate: total > 0 ? Math.round((qualified / total) * 100) : null,
-    campaigns: mockCampaigns.filter(c => c.strategy === strategy).length,
-  }));
-}
+import { useCampaigns } from "../hooks";
 
 function strategyLabel(key: string) {
   if (key === "direct_qualification")    return "Direct qualification";
@@ -26,7 +8,25 @@ function strategyLabel(key: string) {
 }
 
 export default function StrategiesPage() {
-  const stats = getStrategyStats().filter(s => s.rate !== null);
+  const { data: campaigns } = useCampaigns();
+
+  // Aggregate qualification rate by strategy type from campaigns
+  const map: Record<string, { total: number; qualified: number }> = {};
+  for (const c of (campaigns || [])) {
+    const s = c.strategy ?? "direct_qualification";
+    if (!map[s]) map[s] = { total: 0, qualified: 0 };
+    map[s].total += c.leads_targeted;
+    if (c.qualification_rate !== null) {
+      map[s].qualified += Math.round((c.qualification_rate / 100) * c.leads_targeted);
+    }
+  }
+
+  const stats = Object.entries(map).map(([strategy, { total, qualified }]) => ({
+    strategy,
+    rate: total > 0 ? Math.round((qualified / total) * 100) : null,
+    campaigns: (campaigns || []).filter(c => c.strategy === strategy).length,
+  })).filter(s => s.rate !== null);
+
   const hasData = stats.length > 0;
 
   return (

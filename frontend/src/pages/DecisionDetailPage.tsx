@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useDecision } from "../hooks";
+import { useDecision, useLeads, useCampaigns, useOutcomes } from "../hooks";
 import ErrorInline from "../components/ui/ErrorInline";
 import EmptyState from "../components/ui/EmptyState";
 import DecisionCard from "../components/shared/DecisionCard";
@@ -9,12 +9,14 @@ import DecisionTrace from "../components/shared/DecisionTrace";
 import AIStateBanner from "../components/shared/AIStateBanner";
 import ActionCard from "../components/shared/ActionCard";
 import OutcomeCard from "../components/shared/OutcomeCard";
-import { mockLeads, mockCampaigns, mockOutcomes } from "../mock";
 import type { Decision } from "../types";
 
 export default function DecisionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: decision, loading, error, reload } = useDecision(id ?? "");
+  const { data: allLeads } = useLeads();
+  const { data: allCampaigns } = useCampaigns();
+  const { data: allOutcomes } = useOutcomes();
   const [localDecision, setLocalDecision] = useState<Decision | null>(null);
 
   if (loading) {
@@ -48,9 +50,9 @@ export default function DecisionDetailPage() {
   }
 
   const d = localDecision ?? decision;
-  const lead = mockLeads.find(l => l.id === d.lead_id);
-  const campaign = mockCampaigns.find(c => c.id === d.campaign_id);
-  const outcome = mockOutcomes.find(o => o.decision_id === d.id) ?? null;
+  const lead = (allLeads || []).find(l => l.id === d.lead_id);
+  const campaign = (allCampaigns || []).find(c => c.id === d.campaign_id);
+  const outcome = (allOutcomes || []).find(o => o.decision_id === d.id) ?? null;
   const isPendingReview = d.outcome === "review_required" && d.action_status === "pending";
 
   return (

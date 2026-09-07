@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { useDecisions } from "../hooks";
+import { useDecisions, useLeads, useCampaigns } from "../hooks";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import ErrorInline from "../components/ui/ErrorInline";
 import EmptyState from "../components/ui/EmptyState";
 import ReviewQueueRow from "../components/shared/ReviewQueueRow";
 import { FilterBar, FilterChip } from "../components/ui/FilterBar";
-import { mockLeads, mockCampaigns } from "../mock";
 import type { Decision } from "../types";
 
 type StatusFilter = "review_required" | "auto_executed" | "overridden" | "all";
 
 export default function DecisionsPage() {
   const { data: decisions, loading, error, reload } = useDecisions();
+  const { data: leads } = useLeads();
+  const { data: campaigns } = useCampaigns();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("review_required");
   const [localDecisions, setLocalDecisions] = useState<Decision[] | null>(null);
 
@@ -68,8 +69,8 @@ export default function DecisionsPage() {
                 <ReviewQueueRow
                   key={d.id}
                   decision={d}
-                  lead={mockLeads.find((l) => l.id === d.lead_id)}
-                  campaign={mockCampaigns.find((c) => c.id === d.campaign_id)}
+                  lead={(leads || []).find((l) => l.id === d.lead_id)}
+                  campaign={(campaigns || []).find((c) => c.id === d.campaign_id)}
                   onUpdate={handleUpdate}
                 />
               ))}

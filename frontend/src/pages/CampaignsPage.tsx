@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useCampaigns } from "../hooks";
+import { useCampaigns, useAgents } from "../hooks";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import ErrorInline from "../components/ui/ErrorInline";
 import EmptyState from "../components/ui/EmptyState";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { FilterBar, FilterChip } from "../components/ui/FilterBar";
-import { mockAgents } from "../mock";
 import type { CampaignStatus } from "../types";
 
 function statusVariant(s: CampaignStatus) {
@@ -22,6 +21,7 @@ type Filter = "all" | CampaignStatus;
 
 export default function CampaignsPage() {
   const { data: campaigns, loading, error, reload } = useCampaigns();
+  const { data: agents } = useAgents();
   const [filter, setFilter] = useState<Filter>("all");
   const navigate = useNavigate();
 
@@ -106,7 +106,7 @@ export default function CampaignsPage() {
             </thead>
             <tbody>
               {filtered.map(c => {
-                const agent = mockAgents.find(a => a.id === c.agent_id);
+                const agent = (agents || []).find(a => a.id === c.agent_id);
                 return (
                   <tr
                     key={c.id}

@@ -1,0 +1,10 @@
+# Supabase CLI local artifacts & state
+.temp/
+
+# Proprietary Core Business Logic & AI Decision Engine
+functions/
+
+# Local Environment Secrets
+.env
+.env.*
+!.env.example

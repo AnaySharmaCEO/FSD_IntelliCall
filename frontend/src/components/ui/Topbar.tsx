@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Theme toggle logic mirrors the sidebar — same localStorage key, same data-theme attribute.
 function getTheme(): "light" | "dark" {
@@ -14,6 +15,7 @@ function setTheme(t: "light" | "dark") {
 }
 
 export default function Topbar() {
+  const { user, profile, organization, signOut } = useAuth();
   const [search, setSearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [theme, setThemeState] = useState<"light" | "dark">(() => getTheme());
@@ -90,7 +92,7 @@ export default function Topbar() {
       </form>
 
       <div className="flex items-center gap-4 text-[13px]" style={{ color: "var(--color-text-secondary)" }}>
-        <span className="font-medium">Acme Outbound</span>
+        <span className="font-medium">{organization?.name || "My Workspace"}</span>
 
         {/* Profile avatar + dropdown */}
         <div className="relative" ref={dropdownRef}>
@@ -101,11 +103,11 @@ export default function Topbar() {
               background: profileOpen ? "var(--color-action-primary-solid)" : "var(--color-action-secondary-bg)",
               color: profileOpen ? "#fff" : "var(--color-action-primary)",
             }}
-            title="Jamie Rivera"
+            title={profile?.name || user?.email || "User profile"}
             aria-haspopup="true"
             aria-expanded={profileOpen}
           >
-            JR
+            {profile?.avatar_initials || user?.email?.slice(0, 2).toUpperCase() || "US"}
           </button>
 
           {profileOpen && (
@@ -124,10 +126,10 @@ export default function Topbar() {
                 style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
               >
                 <p className="text-[13px] font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                  Jamie Rivera
+                  {profile?.name || user?.email?.split("@")[0] || "User"}
                 </p>
                 <p className="text-[11px]" style={{ fontFamily: "var(--font-data)", color: "var(--color-text-muted)" }}>
-                  jamie@acme.com
+                  {profile?.email || user?.email || ""}
                 </p>
               </div>
 
@@ -174,7 +176,11 @@ export default function Topbar() {
               {/* Log out */}
               <div style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
                 <button
-                  onClick={() => { setProfileOpen(false); navigate("/"); }}
+                  onClick={async () => {
+                    setProfileOpen(false);
+                    await signOut();
+                    navigate("/signin");
+                  }}
                   className="w-full flex items-center px-3 py-2.5 text-[13px] transition-colors"
                   style={{ color: "var(--color-error)" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "var(--color-bg-sunken)")}

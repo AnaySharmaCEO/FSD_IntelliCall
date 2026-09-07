@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { useLead, useCallActions } from "../hooks";
+import { useLead, useCallActions, useDecisions, useCampaigns, useCalls, useOutcomes } from "../hooks";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import ErrorInline from "../components/ui/ErrorInline";
 import Badge from "../components/ui/Badge";
@@ -14,8 +14,6 @@ import EmptyState from "../components/ui/EmptyState";
 import EvidenceThread from "../components/shared/EvidenceThread";
 import OutcomeCard from "../components/shared/OutcomeCard";
 import CallWithAIDrawer from "../components/shared/CallWithAIDrawer";
-import { mockDecisions, mockCampaigns, mockCalls, mockOutcomes } from "../mock";
-import { mockConversationStates } from "../mock/conversationStates";
 import type { Decision, Call, LeadStatus } from "../types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -46,6 +44,11 @@ function formatDate(iso: string) {
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: lead, loading, error, reload } = useLead(id ?? "");
+  const { data: campaigns } = useCampaigns();
+  const { data: allDecisionsData } = useDecisions();
+  const { data: allCallsData } = useCalls();
+  const { data: allOutcomesData } = useOutcomes();
+
   const [localDecisions, setLocalDecisions] = useState<Decision[] | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [liveCall, setLiveCall] = useState<Call | null>(null);
@@ -90,17 +93,18 @@ export default function LeadDetailPage() {
     );
   }
 
-  const campaign = mockCampaigns.find(c => c.id === lead.campaign_id);
-  const leadOutcome = mockOutcomes.find(o => o.lead_id === lead.id) ?? null;
-  const allDecisions = localDecisions ?? mockDecisions.filter(d => d.lead_id === lead.id);
+  const campaign = (campaigns || []).find(c => c.id === lead.campaign_id);
+  const leadOutcome = (allOutcomesData || []).find(o => o.lead_id === lead.id) ?? null;
+  const leadDecisions = (allDecisionsData || []).filter(d => d.lead_id === lead.id);
+  const allDecisions = localDecisions ?? leadDecisions;
   const latestDecision = allDecisions[0] ?? null;
-  const calls = mockCalls.filter(c => c.lead_id === lead.id);
+  const calls = (allCallsData || []).filter(c => c.lead_id === lead.id);
   const latestCall = calls[0] ?? null;
   const effectiveCall = liveCall ?? latestCall;
   const isLiveCall = effectiveCall?.status === "connected" || effectiveCall?.status === "calling" || effectiveCall?.status === "processing";
   const isScheduled = effectiveCall?.status === "scheduled";
   const callInFlight = isLiveCall || isScheduled;
-  const convoState = latestCall ? mockConversationStates[latestCall.id] : null;
+  const convoState = null;
   const reviewRequired =
     latestDecision?.outcome === "review_required" &&
     latestDecision.action_status === "pending";
@@ -117,7 +121,7 @@ export default function LeadDetailPage() {
       timestamp: call.started_at,
       href: `/calls/${call.id}`,
     })),
-    ...(localDecisions ?? mockDecisions.filter(d => d.lead_id === lead.id)).map(dec => ({
+    ...allDecisions.map(dec => ({
       id: dec.id,
       type: "decision" as const,
       title: `Decision — ${dec.outcome === "qualified" ? "Qualified" : dec.outcome === "not_qualified" ? "Not qualified" : "Review required"}`,

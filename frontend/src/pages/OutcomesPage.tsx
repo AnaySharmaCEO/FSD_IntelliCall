@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { useOutcomes, useOutcomeFunnel } from "../hooks";
+import { useOutcomes, useOutcomeFunnel, useLeads } from "../hooks";
 import ErrorInline from "../components/ui/ErrorInline";
 import EmptyState from "../components/ui/EmptyState";
 import OutcomeCard from "../components/shared/OutcomeCard";
 import { FilterBar, FilterChip } from "../components/ui/FilterBar";
-import { mockLeads } from "../mock";
 
 type StageFilter = "all" | "meeting_booked" | "meeting_attended" | "opportunity" | "converted" | "stalled";
 
 export default function OutcomesPage() {
   const { data: outcomes, loading, error, reload } = useOutcomes();
   const { data: funnel, loading: funnelLoading, error: funnelError } = useOutcomeFunnel();
+  const { data: leads } = useLeads();
   const [stageFilter, setStageFilter] = useState<StageFilter>("all");
 
   const filtered = (outcomes ?? []).filter(o => {
@@ -20,7 +20,7 @@ export default function OutcomesPage() {
   });
 
   // Decision accuracy: qualified → converted
-  const accuracy = funnel && funnel.length >= 2
+  const accuracy = funnel && funnel.length >= 2 && funnel[0].count > 0
     ? Math.round((funnel[funnel.length - 1].count / funnel[0].count) * 100)
     : null;
 
@@ -235,7 +235,7 @@ export default function OutcomesPage() {
             <OutcomeCard
               key={o.id}
               outcome={o}
-              lead={mockLeads.find(l => l.id === o.lead_id)}
+              lead={(leads || []).find(l => l.id === o.lead_id)}
             />
           ))}
         </div>

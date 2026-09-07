@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useDashboard, useDecisions, useOutcomeFunnel } from "../hooks";
+import { useDashboard, useDecisions, useOutcomeFunnel, useLeads } from "../hooks";
+import { useAuth } from "../contexts/AuthContext";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import ErrorInline from "../components/ui/ErrorInline";
+import EmptyState from "../components/ui/EmptyState";
 import AIStateBanner from "../components/shared/AIStateBanner";
 import Button from "../components/ui/Button";
 import type { Decision } from "../types";
-import { mockLeads, mockCampaigns } from "../mock";
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,7 @@ function FunnelStage({
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const { organization } = useAuth();
   const { stats, performance } = useDashboard();
   const {
     data: decisions,
@@ -109,6 +111,8 @@ export default function DashboardPage() {
     reload: reloadDecisions,
   } = useDecisions();
   const { data: funnel, loading: funnelLoading } = useOutcomeFunnel();
+  const { data: leads } = useLeads();
+  const navigate = useNavigate();
 
   const [localDecisions, setLocalDecisions] = useState<Decision[] | null>(null);
   const source = localDecisions ?? decisions ?? [];
@@ -123,11 +127,6 @@ export default function DashboardPage() {
     d => d.outcome === "review_required" && d.action_status === "pending"
   ).length;
 
-  const handleDecisionUpdate = (updated: Decision) => {
-    const base = localDecisions ?? decisions ?? [];
-    setLocalDecisions(base.map(d => (d.id === updated.id ? updated : d)));
-  };
-
   return (
     <div>
       {/* Page header */}
@@ -140,7 +139,7 @@ export default function DashboardPage() {
             Dashboard
           </h1>
           <p className="text-[13px]" style={{ color: "var(--color-text-secondary)" }}>
-            Operational and decision-intelligence overview for Acme Outbound.
+            Operational and decision-intelligence overview for {organization?.name || "your workspace"}.
           </p>
         </div>
         <Link to="/campaigns/new">
@@ -220,7 +219,6 @@ export default function DashboardPage() {
               View all →
             </Link>
           </div>
-          {/* Compact decision rows — one row per decision, no inline actions */}
           {decisionsLoading ? (
             <SkeletonTable rows={3} />
           ) : decisionsError ? (
@@ -228,12 +226,17 @@ export default function DashboardPage() {
               <ErrorInline message="Couldn't load decisions." onRetry={reloadDecisions} />
             </div>
           ) : recentDecisions.length === 0 ? (
-            <p
-              className="text-[13px] text-center py-8"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              No decisions yet.
-            </p>
+            <div className="py-6">
+              <EmptyState
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  </svg>
+                }
+                title="No decisions yet"
+                description="Decisions evaluated by AI on live calls will appear here."
+              />
+            </div>
           ) : (
             <div>
               {reviewCount > 0 && (
@@ -245,7 +248,7 @@ export default function DashboardPage() {
                 </div>
               )}
               {recentDecisions.map(d => {
-                const lead = mockLeads.find(l => l.id === d.lead_id);
+                const lead = (leads || []).find(l => l.id === d.lead_id);
                 const isReview = d.outcome === "review_required" && d.action_status === "pending";
                 return (
                   <div
@@ -269,7 +272,7 @@ export default function DashboardPage() {
                       className="font-medium flex-1 truncate"
                       style={{ color: "var(--color-text-primary)" }}
                     >
-                      {lead?.name ?? "—"}
+                      {lead?.name ?? "Lead"}
                     </span>
                     {/* Confidence */}
                     <span
@@ -333,7 +336,21 @@ export default function DashboardPage() {
                   />
                 ))}
               </>
-            ) : performance.data ? (
+            ) : !performance.data || performance.data.length === 0 ? (
+              <div className="py-4">
+                <EmptyState
+                  icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="4" width="18" height="16" rx="2" />
+                      <path d="M3 9h18" />
+                    </svg>
+                  }
+                  title="No campaigns yet"
+                  description="Create a campaign to track conversion metrics."
+                  action={{ label: "Create campaign", onClick: () => navigate("/campaigns/new") }}
+                />
+              </div>
+            ) : (
               [...performance.data]
                 .sort((a, b) => b.rate - a.rate)
                 .map(row => (
@@ -367,7 +384,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))
-            ) : null}
+            )}
           </div>
         </div>
       </div>
