@@ -10,6 +10,7 @@ import type {
   Decision,
   Action,
   Outcome,
+  TraceStep,
 } from "../types";
 
 export const mockOrg: Organization = {

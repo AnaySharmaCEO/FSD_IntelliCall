@@ -3,5 +3,5 @@ import { usersService } from "../services";
 import type { User } from "../types";
 
 export function useCurrentUser() {
-  return useAsync<User>(() => usersService.getCurrent(), []);
+  return useAsync<User | null>(() => usersService.getCurrent(), []);
 }
