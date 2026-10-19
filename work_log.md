@@ -117,7 +117,7 @@
   8. **Route Wiring & Verification:**
      - Mounted all 8 feature views under `AppLayout` with navigation links in `Sidebar`, `Topbar`, and `CommandPalette`.
      - Verified `npm run build` completed with 0 errors (2260 modules transformed in 1.45s).
-* **Commit Reference:** Pending Checkpoint Push F2
+* **Commit Reference:** `ece939f` (`feat(frontend): complete Phase F2 reference screens and domain feature modules`)
 
 
 
