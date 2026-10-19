@@ -1,69 +1,79 @@
-import { useEffect, type ReactNode } from "react";
+import React, { useEffect, type ReactNode } from 'react';
+import { cn } from '../../lib/cn';
+import { X } from 'lucide-react';
 
-interface ModalProps {
+export interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
-  size?: "sm" | "md" | "lg";
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   footer?: ReactNode;
 }
 
 const sizeStyles = {
-  sm: "max-w-[480px]",
-  md: "max-w-[560px]",
-  lg: "max-w-[720px]",
+  sm: 'max-w-[480px]',
+  md: 'max-w-[560px]',
+  lg: 'max-w-[720px]',
+  xl: 'max-w-[900px]',
 };
 
-export default function Modal({ open, onClose, title, children, size = "md", footer }: ModalProps) {
+export const Modal: React.FC<ModalProps> = ({
+  open,
+  onClose,
+  title,
+  children,
+  size = 'md',
+  footer,
+}) => {
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
       aria-modal="true"
       role="dialog"
       aria-labelledby="modal-title"
     >
+      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
       <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      <div
-        className={[
-          "relative w-full rounded-[var(--radius-lg)] bg-[var(--color-bg-elevated)]",
-          "shadow-[var(--shadow-lg)] border border-[var(--color-border-subtle)]",
-          "animate-[ic-slide-up_var(--duration-slow)_var(--easing-standard)]",
-          sizeStyles[size],
-        ].join(" ")}
+        className={cn(
+          'relative w-full rounded-[var(--radius-lg)] bg-[var(--color-bg-elevated)]',
+          'shadow-[var(--shadow-lg)] border border-[var(--color-border-subtle)]',
+          'animate-slide-up flex flex-col max-h-[90vh] overflow-hidden',
+          sizeStyles[size]
+        )}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border-subtle)]">
-          <h2 id="modal-title" className="text-[15px] font-semibold text-[var(--color-text-primary)]">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border-subtle)] shrink-0">
+          <h2 id="modal-title" className="text-[15px] font-semibold text-[var(--color-text-primary)]">
+            {title}
+          </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-[var(--radius-sm)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-sunken)] transition-colors"
+            className="p-1.5 rounded-[var(--radius-sm)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
             aria-label="Close modal"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
+            <X size={16} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto flex-1">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[var(--color-border-subtle)]">
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/50 shrink-0">
             {footer}
           </div>
         )}
       </div>
     </div>
   );
-}
+};
+
+export default Modal;
