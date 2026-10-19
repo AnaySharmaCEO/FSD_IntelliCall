@@ -129,7 +129,7 @@
   12. **Route Wiring & Verification:**
       - Mounted all 12 reference views under `AppLayout` with navigation links in `Sidebar`, `Topbar`, and `CommandPalette`.
       - Verified `npm run build` completed with 0 errors (2264 modules transformed in 1.59s).
-* **Commit Reference:** Pending Checkpoint Push F2.2
+* **Commit Reference:** `570a325` (`feat(frontend): port review queue, live monitor, appointments, and campaign wizard`)
 
 
 
