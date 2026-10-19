@@ -12,6 +12,7 @@ import {
   Radio,
   CheckSquare,
   Calendar,
+  Settings,
   Sun,
   Moon,
   ChevronLeft,
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { to: '/appointments', label: 'Appointments', icon: <Calendar size={17} /> },
   { to: '/compliance', label: 'Compliance', icon: <ShieldCheck size={17} /> },
   { to: '/analytics', label: 'Analytics', icon: <BarChart3 size={17} /> },
+  { to: '/settings', label: 'Settings', icon: <Settings size={17} /> },
   { to: '/__kit', label: 'Component Kit', icon: <Palette size={17} /> },
 ];
 

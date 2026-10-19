@@ -2,6 +2,8 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './AppLayout';
 import LandingPage from '../features/landing/LandingPage';
+import AuthPage from '../features/auth/AuthPage';
+import OnboardingPage from '../features/onboarding/OnboardingPage';
 import DashboardPage from '../features/dashboard/DashboardPage';
 import CallsPage from '../features/calls/CallsPage';
 import CallDetailPage from '../features/calls/CallDetailPage';
@@ -14,6 +16,7 @@ import LeadsPage from '../features/leads/LeadsPage';
 import AppointmentsPage from '../features/appointments/AppointmentsPage';
 import CompliancePage from '../features/compliance/CompliancePage';
 import AnalyticsPage from '../features/analytics/AnalyticsPage';
+import SettingsPage from '../features/settings/SettingsPage';
 import KitPage from '../features/kit/KitPage';
 
 export const App: React.FC = () => {
@@ -21,6 +24,10 @@ export const App: React.FC = () => {
     <Routes>
       {/* Public Landing Page at root (Preserved) */}
       <Route path="/" element={<LandingPage />} />
+
+      {/* Auth & Onboarding Flows */}
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/onboarding" element={<OnboardingPage />} />
 
       {/* Main Authenticated / App Shell */}
       <Route element={<AppLayout />}>
@@ -36,6 +43,7 @@ export const App: React.FC = () => {
         <Route path="/appointments" element={<AppointmentsPage />} />
         <Route path="/compliance" element={<CompliancePage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
 
         {/* Design System Verification Kitchen Sink */}
         <Route path="/__kit" element={<KitPage />} />
