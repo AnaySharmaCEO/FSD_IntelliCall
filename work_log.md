@@ -152,6 +152,20 @@
      - Verified `npm run build` completed with 0 errors (2267 modules transformed in 1.51s).
 * **Commit Reference:** `b13366d` (`feat(frontend): port auth, onboarding, and workspace settings`)
 
+---
+
+### [2026-10-19 13:15:00 +05:30] — Phase F4: Archive Legacy Frontend Code
+* **Author:** Anay Sharma
+* **Phase:** F4 (Archive Legacy Code)
+* **Branch:** `phase_2_dev`
+* **Summary of Work Done:**
+  1. Relocated `frontend/legacy-src` into root archive directory `archive/legacy-src` via git mv, preserving all historical code outside the active frontend tree per user directive.
+  2. Verified `frontend/src` has zero external dependencies on legacy code.
+  3. Cleaned `frontend/tsconfig.json` paths and build targets.
+  4. Verified `npm run build` in `frontend/` succeeds with 0 errors (2267 modules transformed in 1.59s).
+* **Commit Reference:** Pending Checkpoint Push F4
+
+
 
 
 
