@@ -263,7 +263,7 @@
      - Standardized branding to **IntelliCall (Powered by Resonology AI)** and **Resonology Voice Engine**.
   7. **Build & Quality Verification:**
      - Ran `npm run build` in `frontend/` — succeeded with **0 errors** (2,269 modules transformed).
-* **Commit Reference:** Pending commit
+* **Commit Reference:** `ba10330` (`feat(frontend): add query caching, full settings suite, lead csv tools, and auth routes`)
 
 
 
