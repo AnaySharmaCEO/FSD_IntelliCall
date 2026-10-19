@@ -8,82 +8,58 @@ import {
   CalendarCheck,
   AlertCircle,
   Plus,
+  Trash2,
 } from 'lucide-react';
-import { StatusChip } from '../../components/patterns';
+import { useAppointments, useCreateAppointment, useDeleteAppointment } from '../../api/hooks';
 import { Button, Badge, Input, Select, Modal, useToast } from '../../components/ui';
 import { formatDate } from '../../lib/format';
-
-interface AppointmentItem {
-  id: string;
-  leadName: string;
-  phone: string;
-  dateTime: string;
-  status: 'confirmed' | 'proposed' | 'completed' | 'cancelled';
-  purpose: string;
-  notes: string;
-}
-
-const MOCK_APPOINTMENTS: AppointmentItem[] = [
-  {
-    id: 'apt-001',
-    leadName: 'Vikram Malhotra',
-    phone: '+91 98765 43210',
-    dateTime: '2026-10-20T14:00:00Z',
-    status: 'confirmed',
-    purpose: 'Sign Loan Agreement Documents',
-    notes: 'Loan amount sanctioned at 8.4% APR.',
-  },
-  {
-    id: 'apt-002',
-    leadName: 'Rohit Verma',
-    phone: '+91 99887 76655',
-    dateTime: '2026-10-21T11:30:00Z',
-    status: 'proposed',
-    purpose: 'Fixed Deposit Advisory Callback',
-    notes: 'Inquired about senior citizen FD scheme yield.',
-  },
-  {
-    id: 'apt-003',
-    leadName: 'Anita Deshmukh',
-    phone: '+91 98112 23344',
-    dateTime: '2026-10-20T16:00:00Z',
-    status: 'confirmed',
-    purpose: 'Fee Reversal Verification',
-    notes: 'Supervisor review requested for dispute refund.',
-  },
-];
+import type { Appointment } from '../../contracts/entities';
 
 export const AppointmentsPage: React.FC = () => {
-  const [appointments, setAppointments] = useState<AppointmentItem[]>(MOCK_APPOINTMENTS);
+  const { data: appointments = [], isLoading } = useAppointments();
+  const createAppointment = useCreateAppointment();
+  const deleteAppointment = useDeleteAppointment();
   const [modalOpen, setModalOpen] = useState(false);
   const { toast } = useToast();
 
-  const [leadName, setLeadName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [title, setTitle] = useState('');
+  const [hostName, setHostName] = useState('Sales Representative');
   const [dateTime, setDateTime] = useState('');
-  const [purpose, setPurpose] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(30);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!leadName || !dateTime) return;
+    if (!title || !dateTime) return;
 
-    const newApt: AppointmentItem = {
-      id: `apt-${Date.now()}`,
-      leadName,
-      phone: phone || '+91 00000 00000',
-      dateTime: new Date(dateTime).toISOString(),
-      status: 'confirmed',
-      purpose: purpose || 'Follow-up consultation',
-      notes: 'Scheduled by operator.',
-    };
-
-    setAppointments((prev) => [newApt, ...prev]);
-    toast('Appointment scheduled', 'success');
-    setModalOpen(false);
-    setLeadName('');
-    setPhone('');
-    setPurpose('');
+    try {
+      await createAppointment.mutateAsync({
+        title,
+        hostName,
+        scheduledFor: new Date(dateTime).toISOString(),
+        durationMinutes: Number(durationMinutes),
+        status: 'confirmed',
+        source: 'Dashboard Manual',
+      });
+      toast('Appointment scheduled successfully', 'success');
+      setModalOpen(false);
+      setTitle('');
+      setDateTime('');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to schedule appointment', 'error');
+    }
   };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteAppointment.mutateAsync(id);
+      toast('Appointment cancelled', 'info');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to cancel appointment', 'error');
+    }
+  };
+
+  const confirmedCount = appointments.filter((a) => a.status === 'confirmed').length;
+  const proposedCount = appointments.filter((a) => a.status === 'proposed').length;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
@@ -103,104 +79,176 @@ export const AppointmentsPage: React.FC = () => {
           </p>
         </div>
 
-        <Button size="sm" onClick={() => setModalOpen(true)}>
-          <Plus size={14} className="mr-1.5" />
-          Schedule Appointment
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setModalOpen(true)}>
+            <Plus size={14} className="mr-1.5" />
+            Schedule Appointment
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary KPI Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 rounded-[var(--radius-md)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-[var(--color-text-secondary)]">Total Appointments</p>
+            <p className="text-2xl font-bold font-mono text-[var(--color-text-primary)] mt-0.5">{appointments.length}</p>
+          </div>
+          <CalendarCheck size={24} className="text-[var(--color-action-primary)]" />
+        </div>
+        <div className="p-4 rounded-[var(--radius-md)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-[var(--color-text-secondary)]">Confirmed Bookings</p>
+            <p className="text-2xl font-bold font-mono text-[var(--color-success)] mt-0.5">{confirmedCount}</p>
+          </div>
+          <CheckCircle2 size={24} className="text-[var(--color-success)]" />
+        </div>
+        <div className="p-4 rounded-[var(--radius-md)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-[var(--color-text-secondary)]">Proposed In-Flight</p>
+            <p className="text-2xl font-bold font-mono text-amber-500 mt-0.5">{proposedCount}</p>
+          </div>
+          <Clock size={24} className="text-amber-500" />
+        </div>
       </div>
 
       {/* Appointments List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {appointments.map((apt) => (
-          <div
-            key={apt.id}
-            className="p-5 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4 shadow-2xs hover:border-[var(--color-border-default)] transition-colors flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <span className="font-semibold text-sm text-[var(--color-text-primary)]">
-                  {apt.leadName}
-                </span>
-                <Badge variant={apt.status === 'confirmed' ? 'success' : 'warning'}>
-                  {apt.status}
-                </Badge>
+      {isLoading ? (
+        <div className="text-center py-12 text-sm text-[var(--color-text-muted)]">
+          Loading commitments...
+        </div>
+      ) : appointments.length === 0 ? (
+        <div className="text-center py-16 p-8 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-dashed border-[var(--color-border-default)]">
+          <Calendar size={36} className="mx-auto text-[var(--color-text-muted)] mb-3" />
+          <h3 className="text-base font-semibold text-[var(--color-text-primary)]">No Appointments Booked Yet</h3>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-1 max-w-sm mx-auto">
+            Appointments will automatically appear here when voice agents or reps schedule callbacks.
+          </p>
+          <Button size="sm" className="mt-4" onClick={() => setModalOpen(true)}>
+            Schedule First Callback
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {appointments.map((apt) => (
+            <div
+              key={apt.id}
+              className="p-5 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4 shadow-2xs hover:border-[var(--color-border-default)] transition-colors flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <span className="font-semibold text-sm text-[var(--color-text-primary)]">
+                    {apt.title}
+                  </span>
+                  <Badge variant={apt.status === 'confirmed' ? 'success' : 'warning'}>
+                    {apt.status}
+                  </Badge>
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
+                    <User size={13} className="text-[var(--color-text-muted)]" />
+                    <span>Host: {apt.hostName}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
+                    <Calendar size={13} className="text-[var(--color-text-muted)]" />
+                    <span className="font-mono">{formatDate(apt.scheduledFor)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
+                    <Clock size={13} className="text-[var(--color-text-muted)]" />
+                    <span className="font-mono">{apt.durationMinutes} minutes</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 p-2.5 rounded bg-[var(--color-bg-sunken)] text-xs space-y-0.5">
+                  <p className="text-[11px] text-[var(--color-text-muted)]">Source: {apt.source}</p>
+                </div>
               </div>
 
-              <div className="space-y-1.5 text-xs">
-                <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                  <Phone size={13} className="text-[var(--color-text-muted)]" />
-                  <span className="font-mono">{apt.phone}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                  <Calendar size={13} className="text-[var(--color-text-muted)]" />
-                  <span className="font-mono">{formatDate(apt.dateTime)}</span>
-                </div>
-              </div>
-
-              <div className="mt-3 p-3 rounded bg-[var(--color-bg-sunken)] text-xs space-y-1">
-                <strong className="text-[var(--color-text-primary)] block font-medium">
-                  {apt.purpose}
-                </strong>
-                <p className="text-[var(--color-text-secondary)] text-[11px] leading-relaxed">
-                  {apt.notes}
-                </p>
+              <div className="pt-3 border-t border-[var(--color-border-subtle)] flex items-center justify-between gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toast(`Invites dispatched for ${apt.title}`, 'success')}
+                >
+                  Send Invite
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(apt.id)}
+                  title="Cancel appointment"
+                >
+                  <Trash2 size={13} />
+                </Button>
               </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            <div className="pt-3 border-t border-[var(--color-border-subtle)] flex items-center justify-between text-xs">
-              <span className="text-[11px] font-mono text-[var(--color-text-muted)]">
-                ID: {apt.id}
-              </span>
-              <button
-                onClick={() => toast(`Calendar invitation re-sent to ${apt.phone}`, 'info')}
-                className="text-[var(--color-action-primary)] hover:underline font-semibold cursor-pointer"
-              >
-                Resend Invite &rarr;
-              </button>
+      {/* Schedule Modal */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Schedule New Consultation / Callback">
+        <form onSubmit={handleCreate} className="space-y-4 mt-2">
+          <div>
+            <label className="text-xs font-semibold text-[var(--color-text-secondary)] block mb-1">
+              Purpose / Title
+            </label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Loan Sanction Agreement Callback"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-[var(--color-text-secondary)] block mb-1">
+              Host / Representative
+            </label>
+            <Input
+              value={hostName}
+              onChange={(e) => setHostName(e.target.value)}
+              placeholder="e.g. Sales Specialist"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)] block mb-1">
+                Date & Time
+              </label>
+              <Input
+                type="datetime-local"
+                value={dateTime}
+                onChange={(e) => setDateTime(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)] block mb-1">
+                Duration (Minutes)
+              </label>
+              <Select
+                value={String(durationMinutes)}
+                onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                options={[
+                  { label: '15 Minutes', value: '15' },
+                  { label: '30 Minutes', value: '30' },
+                  { label: '45 Minutes', value: '45' },
+                  { label: '60 Minutes', value: '60' },
+                ]}
+              />
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Modal: Schedule */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Schedule New Appointment">
-        <form onSubmit={handleCreate} className="space-y-4">
-          <Input
-            label="Prospect Name"
-            placeholder="e.g. Vikram Malhotra"
-            value={leadName}
-            onChange={(e) => setLeadName(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Phone Number"
-            placeholder="+91 98765 43210"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-
-          <Input
-            label="Date & Time"
-            type="datetime-local"
-            value={dateTime}
-            onChange={(e) => setDateTime(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Consultation Purpose"
-            placeholder="e.g. Loan Agreement Final Review"
-            value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-          />
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="outline" size="sm" onClick={() => setModalOpen(false)}>
+          <div className="flex justify-end gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
+            <Button variant="outline" type="button" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">
-              Confirm Appointment
+            <Button type="submit" disabled={createAppointment.isPending}>
+              {createAppointment.isPending ? 'Scheduling...' : 'Save Appointment'}
             </Button>
           </div>
         </form>

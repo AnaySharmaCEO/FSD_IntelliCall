@@ -13,7 +13,11 @@ import { supabase } from "../../lib/supabase";
 type AuthMode = "signin" | "signup" | "forgot-password" | "reset-password";
 // type AuthModeWithOtp = AuthMode | "confirm-email" | "otp"; // [BACKSIDE OTP PRESERVED]
 
-export default function AuthPage() {
+interface AuthPageProps {
+  initialMode?: AuthMode;
+}
+
+export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,13 +37,14 @@ export default function AuthPage() {
 
   const paramMode = searchParams.get("mode") as AuthMode;
   const initialMode: AuthMode =
-    paramMode === "signup"
+    propMode ||
+    (paramMode === "signup"
       ? "signup"
       : paramMode === "forgot-password"
       ? "forgot-password"
       : paramMode === "reset-password"
       ? "reset-password"
-      : "signin";
+      : "signin");
 
   const [mode, setMode] = useState<AuthMode>(initialMode);
 

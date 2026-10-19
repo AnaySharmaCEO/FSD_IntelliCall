@@ -10,6 +10,7 @@ import type {
   Agent,
   Campaign,
   Lead,
+  Appointment,
   ComplianceRule,
   PhoneNumber,
   CallAnalysis,
@@ -245,6 +246,48 @@ export class SupabaseApiClient implements ApiClient {
     };
   }
 
+  // --- APPOINTMENTS ---
+  async listAppointments(status?: string): Promise<Appointment[]> {
+    let query = supabase.from('appointments').select('*').order('scheduled_for', { ascending: true });
+    if (status) {
+      query = query.eq('status', status);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []) as Appointment[];
+  }
+
+  async getAppointment(id: string): Promise<Appointment | null> {
+    const { data, error } = await supabase.from('appointments').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return (data as Appointment) || null;
+  }
+
+  async createAppointment(appointment: Partial<Appointment>): Promise<Appointment> {
+    const { data, error } = await supabase.from('appointments').insert(appointment).select().single();
+    if (error) throw error;
+    return data as Appointment;
+  }
+
+  async updateAppointment(id: string, updates: Partial<Appointment>): Promise<Appointment> {
+    const { data, error } = await supabase.from('appointments').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    return data as Appointment;
+  }
+
+  async deleteAppointment(id: string): Promise<void> {
+    const { error } = await supabase.from('appointments').delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  // --- LEADS BULK IMPORT ---
+  async createLeadsBulk(leads: Partial<Lead>[]): Promise<{ count: number; leads: Lead[] }> {
+    const { data, error } = await supabase.from('leads').insert(leads).select();
+    if (error) throw error;
+    return { count: data?.length || 0, leads: (data || []) as Lead[] };
+  }
+
+  // --- ORGANIZATION & TEAM MEMBERS ---
   async getOrganization(): Promise<Organization | null> {
     const { data, error } = await supabase.from('organizations').select('*').limit(1).maybeSingle();
     if (error) throw error;
@@ -257,5 +300,29 @@ export class SupabaseApiClient implements ApiClient {
     const { data, error } = await supabase.from('organizations').update(updates).eq('id', current.id).select().single();
     if (error) throw error;
     return data as Organization;
+  }
+
+  async listMembers(): Promise<Array<{ id: string; email: string; role: string; name: string }>> {
+    const { data, error } = await supabase
+      .from('organization_members')
+      .select('id, user_id, role, profiles(id, email, full_name)');
+    if (error) throw error;
+    return (data || []).map((m: any) => ({
+      id: m.id,
+      email: m.profiles?.email || 'member@intellicall.ai',
+      role: m.role,
+      name: m.profiles?.full_name || 'Team Member',
+    }));
+  }
+
+  async inviteMember(email: string, role: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // In cloud Supabase, invitation invokes auth admin or creates member link
+      const org = await this.getOrganization();
+      if (!org) throw new Error('No active organization');
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
   }
 }

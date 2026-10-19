@@ -35,7 +35,7 @@ export const CampaignWizardPage: React.FC = () => {
   // Preflight items
   const preflightChecks = [
     { title: 'Twilio Cloud Phone Trunk', passed: true, detail: '2 registered caller IDs available' },
-    { title: 'Gemini Speech Engine Token Quota', passed: true, detail: 'Low-latency quota verified' },
+    { title: 'Resonology Speech Engine Token Quota', passed: true, detail: 'Low-latency quota verified' },
     { title: 'Mandatory Compliance Disclosure', passed: true, detail: 'Recording consent disclaimer active' },
     { title: 'Calling Window Compliance', passed: true, detail: '09:00 - 18:00 within TRAI/TCPA legal hours' },
   ];

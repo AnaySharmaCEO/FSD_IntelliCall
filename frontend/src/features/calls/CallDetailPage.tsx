@@ -56,7 +56,7 @@ export const CallDetailPage: React.FC = () => {
     if (!id) return;
     try {
       await triggerAnalysis.mutateAsync(id);
-      toast('Gemini analysis complete', 'success');
+      toast('Resonology AI analysis complete', 'success');
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : 'Analysis failed', 'error');
     }
@@ -126,7 +126,7 @@ export const CallDetailPage: React.FC = () => {
               onClick={handleRunAnalysis}
             >
               <Sparkles size={14} className="mr-1.5" />
-              Generate Gemini Analysis
+              Generate AI Intelligence Analysis
             </Button>
           )}
         </div>
@@ -268,7 +268,7 @@ export const CallDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column (5 cols): Gemini Analysis & Signals */}
+        {/* Right Column (5 cols): Resonology AI Analysis & Signals */}
         <div className="lg:col-span-5 space-y-6">
           {analysisLoading ? (
             <div className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4">
@@ -283,7 +283,7 @@ export const CallDetailPage: React.FC = () => {
                 <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
                   <div className="flex items-center gap-1.5 text-[var(--color-action-primary)] font-semibold text-xs">
                     <Sparkles size={14} />
-                    <span>Gemini 2.0 Flash Extraction</span>
+                    <span>Resonology AI Intelligence Extraction</span>
                   </div>
                   <Badge variant="success">Structured JSON</Badge>
                 </div>
@@ -389,7 +389,7 @@ export const CallDetailPage: React.FC = () => {
             <div className="p-8 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-center space-y-3">
               <Sparkles size={24} className="mx-auto text-[var(--color-text-muted)]" />
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                No Gemini Analysis Generated
+                No AI Analysis Generated Yet
               </h3>
               <p className="text-xs text-[var(--color-text-secondary)]">
                 Trigger post-call structured extraction to evaluate sentiment, intents, and compliance.

@@ -10,6 +10,7 @@ import type {
   Agent,
   Campaign,
   Lead,
+  Appointment,
   ComplianceRule,
   PhoneNumber,
   CallAnalysis,
@@ -315,6 +316,103 @@ export class MockApiClient implements ApiClient {
     };
   }
 
+  // --- APPOINTMENTS ---
+  private appointments: Appointment[] = [
+    {
+      id: 'apt-001',
+      orgId: 'org-default',
+      leadId: 'lead-001',
+      title: 'Sign Loan Agreement Documents',
+      scheduledFor: '2026-10-20T14:00:00Z',
+      durationMinutes: 30,
+      status: 'confirmed',
+      hostName: 'Vikram Malhotra',
+      source: 'AI Agent',
+      createdAt: '2026-10-18T10:00:00Z',
+    },
+    {
+      id: 'apt-002',
+      orgId: 'org-default',
+      leadId: 'lead-002',
+      title: 'Fixed Deposit Advisory Callback',
+      scheduledFor: '2026-10-21T11:30:00Z',
+      durationMinutes: 15,
+      status: 'proposed',
+      hostName: 'Rohit Verma',
+      source: 'AI Agent',
+      createdAt: '2026-10-18T11:00:00Z',
+    },
+    {
+      id: 'apt-003',
+      orgId: 'org-default',
+      leadId: 'lead-003',
+      title: 'Fee Reversal Verification',
+      scheduledFor: '2026-10-20T16:00:00Z',
+      durationMinutes: 45,
+      status: 'confirmed',
+      hostName: 'Anita Deshmukh',
+      source: 'AI Agent',
+      createdAt: '2026-10-19T09:00:00Z',
+    },
+  ];
+
+  async listAppointments(status?: string): Promise<Appointment[]> {
+    if (status) {
+      return this.appointments.filter((a) => a.status === status);
+    }
+    return [...this.appointments];
+  }
+
+  async getAppointment(id: string): Promise<Appointment | null> {
+    return this.appointments.find((a) => a.id === id) || null;
+  }
+
+  async createAppointment(appointment: Partial<Appointment>): Promise<Appointment> {
+    const newApt: Appointment = {
+      id: appointment.id || `apt-${Date.now()}`,
+      orgId: this.org.id,
+      leadId: appointment.leadId || 'lead-default',
+      title: appointment.title || 'Follow-up Call',
+      scheduledFor: appointment.scheduledFor || new Date().toISOString(),
+      durationMinutes: appointment.durationMinutes || 30,
+      status: (appointment.status as any) || 'confirmed',
+      hostName: appointment.hostName || 'Sales Representative',
+      source: appointment.source || 'Manual Schedule',
+      createdAt: new Date().toISOString(),
+    };
+    this.appointments.unshift(newApt);
+    return newApt;
+  }
+
+  async updateAppointment(id: string, updates: Partial<Appointment>): Promise<Appointment> {
+    const index = this.appointments.findIndex((a) => a.id === id);
+    if (index === -1) throw new Error('Appointment not found');
+    this.appointments[index] = { ...this.appointments[index], ...updates };
+    return this.appointments[index];
+  }
+
+  async deleteAppointment(id: string): Promise<void> {
+    this.appointments = this.appointments.filter((a) => a.id !== id);
+  }
+
+  // --- BULK LEADS ---
+  async createLeadsBulk(newLeads: Partial<Lead>[]): Promise<{ count: number; leads: Lead[] }> {
+    const created: Lead[] = newLeads.map((l, i) => ({
+      id: `lead-bulk-${Date.now()}-${i}`,
+      organization_id: this.org.id,
+      first_name: l.first_name || 'Prospect',
+      last_name: l.last_name || '',
+      phone: l.phone || '+91 99999 99999',
+      email: l.email || undefined,
+      campaign_id: l.campaign_id,
+      status: l.status || 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+    this.leads = [...created, ...this.leads];
+    return { count: created.length, leads: created };
+  }
+
   async getOrganization(): Promise<Organization | null> {
     return this.org;
   }
@@ -326,5 +424,17 @@ export class MockApiClient implements ApiClient {
       updated_at: new Date().toISOString(),
     };
     return this.org;
+  }
+
+  async listMembers(): Promise<Array<{ id: string; email: string; role: string; name: string }>> {
+    return [
+      { id: 'mem-1', email: 'anay@resonology.ai', role: 'owner', name: 'Anay Sharma' },
+      { id: 'mem-2', email: 'sam@resonology.ai', role: 'admin', name: 'Sam Chen' },
+      { id: 'mem-3', email: 'operator@resonology.ai', role: 'agent_operator', name: 'Rajesh Kumar' },
+    ];
+  }
+
+  async inviteMember(email: string, role: string): Promise<{ success: boolean; error?: string }> {
+    return { success: true };
   }
 }

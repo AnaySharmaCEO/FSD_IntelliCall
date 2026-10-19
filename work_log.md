@@ -229,6 +229,43 @@
      - Created `scripts/deploy-supabase-cloud.ps1` (PowerShell) and `scripts/deploy-supabase-cloud.sh` (Bash) to connect the terminal to Supabase, audit migration differences, push SQL schemas, and deploy edge functions in one command.
 * **Commit Reference:** `6ce5550` (`feat(backend): deploy phase 2 schema extensions and analysis-run to supabase cloud`)
 
+---
+
+### [2026-10-19 14:48:00 +05:30] — Enterprise Caching Architecture, Full Settings Suite, Lead CSV Tools & Dead-Click Elimination
+* **Author:** Anay Sharma
+* **Phase:** Frontend Hardening, Brand Alignment & State Architecture
+* **Branch:** `phase_2_dev`
+* **Summary of Work Done:**
+  1. **Hierarchical Query Key Factory & Caching Optimization:**
+     - Created `frontend/src/api/keys.ts` with domain-scoped query key factories (`calls`, `agents`, `campaigns`, `leads`, `appointments`, `compliance`, `analytics`, `organization`).
+     - Reconfigured TanStack `QueryClient` in `main.tsx` with a 5-minute `staleTime` and 30-minute in-memory garbage collection (`gcTime`). Navigating between tabs now returns data instantly from memory without redundant network/database roundtrips.
+     - Wired targeted mutation invalidations across all API hooks (`useCreateAppointment`, `useCreateLeadsBulk`, `useUpdateOrganization`, `useInviteMember`).
+  2. **Comprehensive 5-Tab Enterprise Settings Page:**
+     - Completely rebuilt `SettingsPage.tsx` covering:
+       - **Workspace & Tenancy:** Org name, slug, timezone (`Asia/Kolkata`), currency (`INR ₹`).
+       - **Team & RBAC:** Multi-tenant member directory with invite modal across all roles (`admin`, `manager`, `agent_operator`, `viewer`).
+       - **Telephony & Trunks:** Twilio Account SID, Auth Token inputs, and provisioned phone number pool with status badges.
+       - **Voice & Guardrails:** Persona selector (`Aoede`, `Alloy`, `Nova`), interruption sensitivity slider (`150ms-400ms`), model temperature (`0.1-1.0`), and mandatory regulatory disclosure text editor.
+       - **API Keys & Webhooks:** Production API key display with clipboard copy, webhook endpoint configuration, and HMAC signature secrets.
+  3. **Data-Bound Appointments & Live Telemetry:**
+     - Bound `AppointmentsPage.tsx` to live `useAppointments()` and `useCreateAppointment()` hooks, eliminating static mock arrays.
+     - Dynamically calculated confirmed vs proposed booking summary metrics and added callback scheduling modal.
+     - Bound `AnalyticsPage.tsx` `FunnelChart` directly to `analytics.funnelMetrics` and daily velocity trends.
+     - Dynamically calculated compliance pass rate in `DashboardPage.tsx` from active compliance audit rules.
+  4. **Lead CSV Import & Export Capabilities:**
+     - Created `CsvImportModal.tsx` supporting RFC 4180 parsing, intelligent column auto-matching (`name`, `phone`, `email`, `company`), batch validation, and bulk insert into Supabase `leads`.
+     - Added one-click **Export CSV** in `LeadsPage.tsx` that downloads the active lead dataset formatted as a standard `.csv` file.
+  5. **Authentication Navigation & Sidebar Logout:**
+     - Added route aliases `/signin`, `/signup`, and `/login` in `App.tsx` directly activating the corresponding mode in `AuthPage.tsx`.
+     - Added a dedicated, styled **Sign out** button in the `Sidebar.tsx` navigation footer that purges session tokens and safely redirects to `/`.
+  6. **Brand & Copy Sanitization:**
+     - Removed all external "Gemini" copy across `DashboardPage.tsx`, `CallDetailPage.tsx`, `AgentsPage.tsx`, `AnalyticsPage.tsx`, and `CampaignWizardPage.tsx`.
+     - Standardized branding to **IntelliCall (Powered by Resonology AI)** and **Resonology Voice Engine**.
+  7. **Build & Quality Verification:**
+     - Ran `npm run build` in `frontend/` — succeeded with **0 errors** (2,269 modules transformed).
+* **Commit Reference:** Pending commit
+
+
 
 
 

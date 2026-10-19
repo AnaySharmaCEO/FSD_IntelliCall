@@ -27,6 +27,9 @@ export const App: React.FC = () => {
 
       {/* Auth & Onboarding Flows */}
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/signin" element={<AuthPage initialMode="signin" />} />
+      <Route path="/login" element={<AuthPage initialMode="signin" />} />
+      <Route path="/signup" element={<AuthPage initialMode="signup" />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
 
       {/* Main Authenticated / App Shell */}

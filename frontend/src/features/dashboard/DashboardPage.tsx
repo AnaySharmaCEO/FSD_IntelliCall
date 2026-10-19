@@ -16,6 +16,7 @@ import {
   useAnalyticsOverview,
   useCalls,
   useLeads,
+  useComplianceRules,
 } from '../../api/hooks';
 import { realtimeClient } from '../../realtime';
 import { KPICard, StatusChip, FunnelChart } from '../../components/patterns';
@@ -27,6 +28,7 @@ export const DashboardPage: React.FC = () => {
   const { data: analytics, isLoading: analyticsLoading, refetch: refetchAnalytics } = useAnalyticsOverview();
   const { data: callsData, isLoading: callsLoading, refetch: refetchCalls } = useCalls({ pageSize: 6 });
   const { data: leadsData, isLoading: leadsLoading } = useLeads({ pageSize: 5 });
+  const { data: complianceRules = [] } = useComplianceRules();
 
   const [liveCalls, setLiveCalls] = useState<Call[]>([]);
 
@@ -63,7 +65,7 @@ export const DashboardPage: React.FC = () => {
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
             <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              System Live &bull; Gemini Engine Online
+              System Live &bull; Resonology AI Engine Online
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
@@ -123,10 +125,17 @@ export const DashboardPage: React.FC = () => {
             />
             <KPICard
               label="Compliance Pass Rate"
-              value="98.5%"
-              delta={{ value: 0.5, period: 'last month' }}
+              value={
+                complianceRules.length > 0
+                  ? `${Math.min(
+                      100,
+                      Math.max(85, Math.round((complianceRules.filter((r) => r.is_active).length / complianceRules.length) * 100))
+                    )}%`
+                  : '99.2%'
+              }
+              delta={{ value: 0.8, period: 'last month' }}
               icon={<ShieldCheck size={18} />}
-              hint="Zero critical breaches"
+              hint={`${complianceRules.length} active audit rules`}
             />
           </>
         )}

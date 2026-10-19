@@ -172,7 +172,7 @@ export const AgentsPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              Gemini Live Architecture
+              Resonology Voice Engine
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">

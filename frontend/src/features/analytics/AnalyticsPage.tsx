@@ -55,7 +55,7 @@ export const AnalyticsPage: React.FC = () => {
               value="410 ms"
               delta={{ value: -9.5, period: 'yesterday' }}
               icon={<Activity size={18} className="text-sky-500" />}
-              hint="Gemini Live stream"
+              hint="Resonology Voice Engine stream"
             />
             <KPICard
               label="Call Disconnect Rate"
@@ -83,15 +83,21 @@ export const AnalyticsPage: React.FC = () => {
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
               End-to-End Pipeline Funnel
             </h2>
-            <Badge variant="success">92% Qualification Rate</Badge>
+            <Badge variant="success">
+              {analytics?.funnelMetrics.connected
+                ? `${Math.round(
+                    ((analytics.funnelMetrics.converted || 0) / (analytics.funnelMetrics.connected || 1)) * 100
+                  )}% Conversion Rate`
+                : '100% Pipeline'}
+            </Badge>
           </div>
 
           <FunnelChart
             steps={[
-              { label: 'Outbound Leads Dialed', count: 1200 },
-              { label: 'Live Connection Established', count: 840 },
-              { label: 'Engaged Turns (>3 turns)', count: 520 },
-              { label: 'Structured Agreement Sanctioned', count: 195 },
+              { label: 'Outbound Leads Dialed', count: (analytics?.funnelMetrics.connected || 0) + (analytics?.funnelMetrics.dropped || 0) || 120 },
+              { label: 'Live Connection Established', count: analytics?.funnelMetrics.connected || 0 },
+              { label: 'Engaged Turns (>30s)', count: analytics?.funnelMetrics.engaged || 0 },
+              { label: 'Qualified / Converted', count: analytics?.funnelMetrics.converted || 0 },
             ]}
           />
         </div>

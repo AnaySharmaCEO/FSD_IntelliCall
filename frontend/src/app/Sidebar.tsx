@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { cn } from '../lib/cn';
@@ -45,7 +46,7 @@ const navItems: NavItem[] = [
 ];
 
 export const Sidebar: React.FC = () => {
-  const { organization } = useAuth();
+  const { organization, signOut } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -150,6 +151,18 @@ export const Sidebar: React.FC = () => {
         >
           {theme === 'light' ? <Moon size={15} className="shrink-0" /> : <Sun size={15} className="shrink-0 text-amber-400" />}
           {!collapsed && <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>}
+        </button>
+
+        <button
+          onClick={() => signOut()}
+          className={cn(
+            'flex items-center gap-3 w-full px-3 py-1.5 rounded-[var(--radius-sm)] text-[12px] text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer',
+            collapsed ? 'justify-center px-0' : ''
+          )}
+          title="Sign out of account"
+        >
+          <LogOut size={15} className="shrink-0" />
+          {!collapsed && <span>Sign out</span>}
         </button>
       </div>
     </aside>

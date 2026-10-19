@@ -4,6 +4,7 @@ import {
   Plus,
   Search,
   UploadCloud,
+  Download,
   Phone,
   Mail,
   CheckCircle2,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useLeads, useCreateLead, useCampaigns } from '../../api/hooks';
 import { StatusChip } from '../../components/patterns';
+import { CsvImportModal } from './CsvImportModal';
 import {
   Button,
   Badge,
@@ -30,6 +32,7 @@ export const LeadsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Form State
   const [firstName, setFirstName] = useState('');
@@ -39,7 +42,7 @@ export const LeadsPage: React.FC = () => {
   const [campaignId, setCampaignId] = useState('');
 
   const { data: campaigns = [] } = useCampaigns();
-  const { data: leadsResult, isLoading } = useLeads({
+  const { data: leadsResult, isLoading, refetch } = useLeads({
     search: search.trim() || undefined,
     status: statusFilter || undefined,
   });
@@ -47,6 +50,34 @@ export const LeadsPage: React.FC = () => {
   const { toast } = useToast();
 
   const leads = leadsResult?.data || [];
+
+  const handleExportCsv = () => {
+    if (leads.length === 0) {
+      toast('No leads available to export', 'error');
+      return;
+    }
+
+    const headers = ['First Name', 'Last Name', 'Phone', 'Email', 'Status', 'Created At'];
+    const rows = leads.map((l) => [
+      `"${l.first_name || ''}"`,
+      `"${l.last_name || ''}"`,
+      `"${l.phone || ''}"`,
+      `"${l.email || ''}"`,
+      `"${l.status || 'pending'}"`,
+      `"${l.created_at || ''}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `leads_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast(`Exported ${leads.length} leads to CSV`, 'success');
+  };
 
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +122,14 @@ export const LeadsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setCsvModalOpen(true)}>
+            <UploadCloud size={14} className="mr-1.5" />
+            Import CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportCsv}>
+            <Download size={14} className="mr-1.5" />
+            Export CSV
+          </Button>
           <Button size="sm" onClick={() => setModalOpen(true)}>
             <Plus size={14} className="mr-1.5" />
             Add Prospect
@@ -256,6 +295,13 @@ export const LeadsPage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* CSV Bulk Import Modal */}
+      <CsvImportModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 };

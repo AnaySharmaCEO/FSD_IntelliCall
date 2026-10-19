@@ -3,6 +3,7 @@ import type {
   Agent,
   Campaign,
   Lead,
+  Appointment,
   ComplianceRule,
   PhoneNumber,
   CallAnalysis,
@@ -72,6 +73,16 @@ export interface ApiClient {
   createLead(lead: Partial<Lead>): Promise<Lead>;
   updateLead(id: string, updates: Partial<Lead>): Promise<Lead>;
 
+  // Appointments
+  listAppointments(status?: string): Promise<Appointment[]>;
+  getAppointment(id: string): Promise<Appointment | null>;
+  createAppointment(appointment: Partial<Appointment>): Promise<Appointment>;
+  updateAppointment(id: string, updates: Partial<Appointment>): Promise<Appointment>;
+  deleteAppointment(id: string): Promise<void>;
+
+  // Leads Bulk
+  createLeadsBulk(leads: Partial<Lead>[]): Promise<{ count: number; leads: Lead[] }>;
+
   // Compliance
   listComplianceRules(): Promise<ComplianceRule[]>;
   createComplianceRule(rule: Partial<ComplianceRule>): Promise<ComplianceRule>;
@@ -84,7 +95,9 @@ export interface ApiClient {
   // Analytics
   getAnalyticsOverview(): Promise<AnalyticsOverview>;
 
-  // Organization
+  // Organization & Members
   getOrganization(): Promise<Organization | null>;
   updateOrganization(updates: Partial<Organization>): Promise<Organization>;
+  listMembers(): Promise<Array<{ id: string; email: string; role: string; name: string }>>;
+  inviteMember(email: string, role: string): Promise<{ success: boolean; error?: string }>;
 }
