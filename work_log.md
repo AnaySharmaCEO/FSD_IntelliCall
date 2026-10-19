@@ -78,6 +78,6 @@
      - Created `KitPage.tsx` at `/__kit` providing an interactive kitchen sink to verify all primitives, tokens, and seams.
      - Created `App.tsx` and `main.tsx`.
   8. **Build Verification:** Verified `npm run build` completed cleanly (0 errors, 2249 modules bundled in 1.33s).
-* **Commit Reference:** Pending Checkpoint Push F1
+* **Commit Reference:** `aee11fe` (`feat(frontend): complete Phase F1 foundation, tokens, seams, and app shell`)
 
 
