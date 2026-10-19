@@ -31,7 +31,7 @@ Every existing route in `frontend/src/App.tsx` has been catalogued below with it
 
 | Existing Route | Component | Current Data Source | Next Phase Target | Action | Notes |
 |---|---|---|---|---|---|
-| `/` | `LandingPage.tsx` | Static / none | n/a | `delete` | Public landing page retired in favor of direct app onboarding and auth. |
+| `/` | `LandingPage.tsx` | Static / marketing | Landing Page (`/`) | `keep` | Preserved as public landing page at `/` matching current design spec. |
 | `/auth`, `/signin`, `/signup` | `AuthPage.tsx` | Supabase Auth (email, password, OTP) | Auth screens (`FRONTEND_SPEC §A`) | `merge into` | Logic reused inside `AuthAdapter`; UI updated with standard card layouts. |
 | `/onboarding` | `OnboardingPage.tsx` | Supabase `organizations` (`onboarding_progress`) | Onboarding wizard (`03-modals W-04`) | `replace` | Modern 4-step onboarding flow (Org setup, team invite, India calling preferences, demo seed). |
 | `/dashboard` | `DashboardPage.tsx` | `useDashboard`, `useOutcomeFunnel`, `useDecisions` | Dashboard (`02-screens §B`) | `replace` | Modernized KPI strip, conversion funnel, trend charts (Recharts), action queue, health tiles. |

@@ -1,0 +1,185 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* ── Design tokens ── */
+:root {
+  /* Backgrounds */
+  --color-bg-primary: #F7F8FA;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-elevated: #FFFFFF;
+  --color-bg-sunken: #EEF1F5;
+
+  /* Text */
+  --color-text-primary: #171B24;
+  --color-text-secondary: #4B5566;
+  --color-text-muted: #8A93A6;
+  --color-text-on-accent: #FFFFFF;
+
+  /* Borders */
+  --color-border-default: #DEE2E8;
+  --color-border-subtle: #ECEEF2;
+
+  /* Actions */
+  --color-action-primary: #2B4C8C;
+  --color-action-primary-hover: #21396B;
+  --color-action-primary-solid: #2B4C8C;
+  --color-action-primary-solid-hover: #21396B;
+  --color-action-secondary-bg: #E9EEF7;
+  --color-action-secondary-text: #2B4C8C;
+
+  /* Status */
+  --color-success: #1E8E5A;
+  --color-success-bg: #E4F5EC;
+  --color-warning: #B7791F;
+  --color-warning-bg: #FBF0DD;
+  --color-error: #C0392B;
+  --color-error-bg: #FBE7E4;
+  --color-info: #2B4C8C;
+  --color-info-bg: #E9EEF7;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(23,27,36,0.06);
+  --shadow-md: 0 4px 12px rgba(23,27,36,0.08);
+  --shadow-lg: 0 12px 32px rgba(23,27,36,0.14);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Typography */
+  --font-ui: "IBM Plex Sans", -apple-system, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --color-bg-primary: #18181B;
+  --color-bg-surface: #1D1D21;
+  --color-bg-elevated: #232327;
+  --color-bg-sunken: #131315;
+
+  --color-text-primary: #E4E4E6;
+  --color-text-secondary: #9C9CA3;
+  --color-text-muted: #6B6B72;
+  --color-text-on-accent: #FFFFFF;
+
+  --color-border-default: #2E2E33;
+  --color-border-subtle: #242427;
+
+  --color-action-primary: #7C93BD;
+  --color-action-primary-hover: #91A6CA;
+  --color-action-primary-solid: #4A6DA0;
+  --color-action-primary-solid-hover: #3D588A;
+  --color-action-secondary-bg: #24262B;
+  --color-action-secondary-text: #93A6C8;
+
+  --color-success: #7FA98D;
+  --color-success-bg: #1D2420;
+  --color-warning: #BE9C68;
+  --color-warning-bg: #26211A;
+  --color-error: #BE8074;
+  --color-error-bg: #271E1C;
+  --color-info: #7C93BD;
+  --color-info-bg: #21242B;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+}
+
+/* ── Base reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 20px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: var(--font-ui);
+  cursor: pointer;
+}
+
+/* ── Scrollbar ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover {
+  scrollbar-color: var(--color-border-default) transparent;
+}
+
+/* ── Focus ring ── */
+:focus-visible {
+  outline: 2px solid var(--color-action-primary);
+  outline-offset: 2px;
+}
+
+/* ── AI pulse animation ── */
+@keyframes ic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Skeleton shimmer ── */
+@keyframes ic-shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ── Drawer slide-in ── */
+@keyframes ic-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* ── Toast slide-up ── */
+@keyframes ic-slide-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

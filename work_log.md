@@ -49,5 +49,35 @@
   3. Catalogued direct Supabase queries across `src/services/` and `src/hooks/` to be abstracted behind `ApiClient` seams and TanStack Query.
   4. Identified reusable logic: `AuthContext` (wrapped into `SupabaseAuthAdapter`), custom UI primitives (extended for new status/density variants), and Recharts charts.
   5. Authored comprehensive migration map: `docs/frontend/MIGRATION_MAP.md`.
-* **Commit Reference:** Pending Checkpoint Push F0
+* **Commit Reference:** `4abd1af` (`docs(frontend): complete F0 frontend audit and route migration map`)
+
+---
+
+### [2026-10-19 12:30:00 +05:30] — Phase F1: Foundation, Design Tokens, Contracts & Architectural Seams
+* **Author:** Anay Sharma
+* **Phase:** F1 (Foundation & Seams)
+* **Branch:** `phase_2_dev`
+* **Summary of Work Done:**
+  1. **Dependencies:** Installed `@tanstack/react-query`, `@tanstack/react-table`, `react-hook-form`, `zod`, `sonner`, `cmdk`, `date-fns`, `date-fns-tz`, `libphonenumber-js`, `clsx`, `tailwind-merge`, and `lucide-react`.
+  2. **Safe Code Isolation:** Moved `frontend/src` to `frontend/legacy-src` via git mv; updated `tsconfig.json` exclusion; scaffolded clean modular directory hierarchy.
+  3. **Design System Extension:** Created extended `frontend/src/index.css` supporting IBM Plex Sans, IBM Plex Mono, and Noto Sans Devanagari with `#2B4C8C` brand tokens, high-density layouts, and dark mode.
+  4. **Core Utilities & Zod Contracts:**
+     - Created `lib/cn.ts`, `lib/format.ts`, `lib/permissions.ts`.
+     - Created Zod schemas in `contracts/`: `enums.ts`, `analysis.ts`, `entities.ts`, `voice.ts`, and index exporter.
+  5. **Seams Implementation:**
+     - Auth: `adapter.ts`, `supabase.ts`, `mock.ts`, and `context.tsx` with role checking.
+     - API: `client.ts`, `mock/` (with seeded scenarios S1–S14), `http/` (direct cloud Supabase + Edge Functions), and TanStack Query hooks.
+     - Realtime: `client.ts`, `mock.ts` (with automated call lifecycle simulation), and `supabase.ts`.
+     - Voice: `client.ts`, `mock.ts` (with latency metrics <500ms and tool call simulation), and `livekit.ts` (Phase 11 seam).
+  6. **UI Primitives & Pattern Components:**
+     - Ported and extended `Button`, `Badge`, `Input`, `Select`, `Modal`, `Drawer`, `Tabs`, `FilterBar`, `Skeleton`, `EmptyState`, `ErrorInline`, `Toast`.
+     - Created pattern components: `KPICard`, `StatusChip`, `ConfidenceMeter`, `EvidenceChip`, `FunnelChart`.
+  7. **App Shell & Landing Page:**
+     - Preserved `LandingPage.tsx` at `/` with all interactive showcase panels.
+     - Built `Sidebar.tsx`, `Topbar.tsx`, `CommandPalette.tsx` (Cmd+K navigation), and `AppLayout.tsx`.
+     - Created `KitPage.tsx` at `/__kit` providing an interactive kitchen sink to verify all primitives, tokens, and seams.
+     - Created `App.tsx` and `main.tsx`.
+  8. **Build Verification:** Verified `npm run build` completed cleanly (0 errors, 2249 modules bundled in 1.33s).
+* **Commit Reference:** Pending Checkpoint Push F1
+
 
