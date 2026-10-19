@@ -227,7 +227,7 @@
      - Remote status confirmed `ACTIVE` (v1) alongside the 4 foundational webhook/cron functions.
   4. **Automated Cloud Synchronization Scripts:**
      - Created `scripts/deploy-supabase-cloud.ps1` (PowerShell) and `scripts/deploy-supabase-cloud.sh` (Bash) to connect the terminal to Supabase, audit migration differences, push SQL schemas, and deploy edge functions in one command.
-* **Commit Reference:** Pending commit
+* **Commit Reference:** `6ce5550` (`feat(backend): deploy phase 2 schema extensions and analysis-run to supabase cloud`)
 
 
 
