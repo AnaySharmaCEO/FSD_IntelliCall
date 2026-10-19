@@ -1,6 +1,8 @@
-import { useState, useCallback, createContext, useContext, type ReactNode } from "react";
+import React, { useState, useCallback, createContext, useContext, type ReactNode } from 'react';
+import { cn } from '../../lib/cn';
+import { X } from 'lucide-react';
 
-export type ToastVariant = "success" | "error" | "info";
+export type ToastVariant = 'success' | 'error' | 'info';
 
 interface ToastItem {
   id: string;
@@ -19,18 +21,18 @@ export function useToast() {
 }
 
 const variantStyles: Record<ToastVariant, string> = {
-  success: "border-l-[var(--color-success)] text-[var(--color-success)]",
-  error: "border-l-[var(--color-error)] text-[var(--color-error)]",
-  info: "border-l-[var(--color-info)] text-[var(--color-info)]",
+  success: 'border-l-[var(--color-success)] text-[var(--color-success)]',
+  error: 'border-l-[var(--color-error)] text-[var(--color-error)]',
+  info: 'border-l-[var(--color-info)] text-[var(--color-info)]',
 };
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const toast = useCallback((message: string, variant: ToastVariant = "success") => {
+  const toast = useCallback((message: string, variant: ToastVariant = 'success') => {
     const id = `toast_${Date.now()}`;
     setToasts((prev) => [...prev, { id, message, variant }]);
-    if (variant !== "error") {
+    if (variant !== 'error') {
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 5000);
@@ -50,27 +52,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={[
-              "flex items-center justify-between gap-4 px-4 py-3 min-w-[280px] max-w-[380px]",
-              "bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] border-l-4",
-              "rounded-[var(--radius-sm)] shadow-[var(--shadow-md)]",
-              "animate-[ic-slide-up_var(--duration-base)_var(--easing-standard)]",
-              variantStyles[t.variant],
-            ].join(" ")}
+            className={cn(
+              'flex items-center justify-between gap-4 px-4 py-3 min-w-[280px] max-w-[380px]',
+              'bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] border-l-4',
+              'rounded-[var(--radius-sm)] shadow-[var(--shadow-md)] animate-slide-up',
+              variantStyles[t.variant]
+            )}
           >
-            <span className="text-[13px] text-[var(--color-text-primary)]">{t.message}</span>
+            <span className="text-[13px] text-[var(--color-text-primary)] font-medium">{t.message}</span>
             <button
               onClick={() => remove(t.id)}
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] flex-shrink-0"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shrink-0 cursor-pointer"
               aria-label="Dismiss"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
+              <X size={14} />
             </button>
           </div>
         ))}
       </div>
     </ToastContext.Provider>
   );
-}
+};
+
+export default ToastProvider;

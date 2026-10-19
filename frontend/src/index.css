@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 html,
@@ -7,7 +7,7 @@ body,
   height: 100%;
 }
 
-/* ── Design tokens ── */
+/* ── Design tokens (Aligned with existing app spec + extended for Phase 2) ── */
 :root {
   /* Backgrounds */
   --color-bg-primary: #F7F8FA;
@@ -25,15 +25,16 @@ body,
   --color-border-default: #DEE2E8;
   --color-border-subtle: #ECEEF2;
 
-  /* Actions */
+  /* Actions & Brand */
   --color-action-primary: #2B4C8C;
   --color-action-primary-hover: #21396B;
   --color-action-primary-solid: #2B4C8C;
   --color-action-primary-solid-hover: #21396B;
   --color-action-secondary-bg: #E9EEF7;
   --color-action-secondary-text: #2B4C8C;
+  --color-action-secondary-border: #D0DBEE;
 
-  /* Status */
+  /* Status Colors */
   --color-success: #1E8E5A;
   --color-success-bg: #E4F5EC;
   --color-warning: #B7791F;
@@ -42,6 +43,13 @@ body,
   --color-error-bg: #FBE7E4;
   --color-info: #2B4C8C;
   --color-info-bg: #E9EEF7;
+  --color-pending: #667085;
+  --color-pending-bg: #F2F4F7;
+
+  /* Proposed State (Phase 2 extension) */
+  --color-proposed: #B54708;
+  --color-proposed-bg: #FFFAEB;
+  --color-proposed-border: #FEDF89;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(23,27,36,0.06);
@@ -54,7 +62,7 @@ body,
   --radius-lg: 16px;
   --radius-pill: 999px;
 
-  /* Spacing */
+  /* Spacing (4px base) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -67,8 +75,9 @@ body,
   --space-16: 64px;
 
   /* Typography */
-  --font-ui: "IBM Plex Sans", -apple-system, sans-serif;
-  --font-data: "IBM Plex Mono", ui-monospace, monospace;
+  --font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-hindi: "Noto Sans Devanagari", sans-serif;
 
   /* Motion */
   --duration-fast: 120ms;
@@ -97,6 +106,7 @@ body,
   --color-action-primary-solid-hover: #3D588A;
   --color-action-secondary-bg: #24262B;
   --color-action-secondary-text: #93A6C8;
+  --color-action-secondary-border: #3A4354;
 
   --color-success: #7FA98D;
   --color-success-bg: #1D2420;
@@ -106,6 +116,12 @@ body,
   --color-error-bg: #271E1C;
   --color-info: #7C93BD;
   --color-info-bg: #21242B;
+  --color-pending: #98A2B3;
+  --color-pending-bg: #1D2026;
+
+  --color-proposed: #F0A64B;
+  --color-proposed-bg: #2A2114;
+  --color-proposed-border: #5E431E;
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
@@ -137,7 +153,7 @@ button {
   cursor: pointer;
 }
 
-/* ── Scrollbar ── */
+/* ── Scrollbars ── */
 * {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
@@ -152,28 +168,41 @@ button {
   outline-offset: 2px;
 }
 
-/* ── AI pulse animation ── */
+/* ── Animations ── */
 @keyframes ic-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
 
-/* ── Skeleton shimmer ── */
 @keyframes ic-shimmer {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
 
-/* ── Drawer slide-in ── */
 @keyframes ic-slide-in {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
 
-/* ── Toast slide-up ── */
 @keyframes ic-slide-up {
   from { transform: translateY(16px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-ic-pulse {
+  animation: ic-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-ic-shimmer {
+  animation: ic-shimmer 1.5s ease-in-out infinite;
+}
+
+.animate-ic-slide-in {
+  animation: ic-slide-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-ic-slide-up {
+  animation: ic-slide-up 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ── Reduced motion ── */

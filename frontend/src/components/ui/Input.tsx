@@ -1,16 +1,17 @@
-import { forwardRef, type InputHTMLAttributes } from "react";
+import React, { forwardRef, type InputHTMLAttributes } from 'react';
+import { cn } from '../../lib/cn';
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   hint?: string;
 }
 
-const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, className = "", id, ...props }, ref) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ label, error, hint, className, id, ...props }, ref) => {
+    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
     return (
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 w-full">
         {label && (
           <label htmlFor={inputId} className="text-[13px] font-medium text-[var(--color-text-secondary)]">
             {label}
@@ -19,23 +20,23 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           id={inputId}
-          className={[
-            "h-9 px-3 rounded-[var(--radius-sm)] border text-[13px] bg-[var(--color-bg-primary)]",
-            "text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]",
-            "transition-colors duration-[var(--duration-fast)]",
+          className={cn(
+            'h-9 px-3 rounded-[var(--radius-sm)] border text-[13px] bg-[var(--color-bg-primary)]',
+            'text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]',
+            'transition-colors duration-[var(--duration-fast)] outline-none',
             error
-              ? "border-[var(--color-error)] focus:outline-none focus:ring-2 focus:ring-[var(--color-error)]/30"
-              : "border-[var(--color-border-default)] focus:outline-none focus:border-[var(--color-action-primary)] focus:ring-2 focus:ring-[var(--color-action-primary)]/20",
-            className,
-          ].join(" ")}
+              ? 'border-[var(--color-error)] focus:ring-2 focus:ring-[var(--color-error)]/20'
+              : 'border-[var(--color-border-default)] focus:border-[var(--color-action-primary)] focus:ring-2 focus:ring-[var(--color-action-primary)]/20',
+            className
+          )}
           {...props}
         />
-        {error && <p className="text-[12px] text-[var(--color-error)]">{error}</p>}
+        {error && <p className="text-[12px] text-[var(--color-error)] font-medium">{error}</p>}
         {hint && !error && <p className="text-[12px] text-[var(--color-text-muted)]">{hint}</p>}
       </div>
     );
   }
 );
 
-Input.displayName = "Input";
+Input.displayName = 'Input';
 export default Input;
