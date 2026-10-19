@@ -165,6 +165,31 @@
   4. Verified `npm run build` in `frontend/` succeeds with 0 errors (2267 modules transformed in 1.59s).
 * **Commit Reference:** `3ceac1c` (`chore(frontend): archive legacy-src to archive/legacy-src outside frontend tree`)
 
+---
+
+### [2026-10-19 13:25:00 +05:30] — Phase B1–B8: Supabase Cloud Schema Extensions & Post-Call Edge Function
+* **Author:** Anay Sharma
+* **Phase:** B1–B8 (Backend Extensions & Post-Call AI Pipeline)
+* **Branch:** `phase_2_dev`
+* **Summary of Work Done:**
+  1. **User Role Forward-Only Enum Migration:**
+     - Extended `public.user_role` enum with `'manager'`, `'agent_operator'`, and `'viewer'` using safe defensive `IF NOT EXISTS` block.
+  2. **Campaign Dialing Constraints:**
+     - Added `calling_hours_start`, `calling_hours_end`, `daily_budget`, `concurrency_limit`, and `timezone` columns to `public.campaigns`.
+  3. **Call Telemetry & Quality Scoring:**
+     - Added `direction`, `sentiment`, `call_score`, and `metadata` JSONB columns to `public.calls`.
+  4. **Compliance Rule Engine Table:**
+     - Created `public.compliance_rules` with organizational multi-tenancy, `rule_type` validation (`required_phrase`, `forbidden_phrase`), violation actions (`flag`, `terminate_call`, `escalate`), and RLS policies for members and admins.
+  5. **Post-Call Analysis Table:**
+     - Created `public.call_analyses` table storing Gemini-extracted summaries, overall sentiment, intent and confidence ratings, resolution status, satisfaction score, compliance score, action items, and risk signals.
+     - Secured with organization-scoped RLS policies.
+  6. **Telephony Number Pool:**
+     - Created `public.phone_numbers` table for Twilio number assignment and campaign linking with RLS.
+  7. **Gemini Post-Call Edge Function:**
+     - Built `supabase/functions/analysis-run/index.ts` connecting Google Gemini 2.0 Flash (`gemini-2.0-flash`) via structured JSON schema (`responseSchema`) with resilient fallback to derive actionable intelligence, risk signals, and sentiment for all processed calls.
+* **Commit Reference:** Pending commit
+
+
 
 
 
