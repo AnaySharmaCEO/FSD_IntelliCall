@@ -83,6 +83,9 @@ export function formatDateTime(
   }).format(date);
 }
 
+export const formatDate = formatDateTime;
+
+
 /**
  * Format a phone number to standard Indian presentation (+91 98765 43210).
  * Supports masking for roles lacking PII permissions (+91 98••• ••210).

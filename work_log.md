@@ -80,4 +80,44 @@
   8. **Build Verification:** Verified `npm run build` completed cleanly (0 errors, 2249 modules bundled in 1.33s).
 * **Commit Reference:** `aee11fe` (`feat(frontend): complete Phase F1 foundation, tokens, seams, and app shell`)
 
+---
+
+### [2026-10-19 12:45:00 +05:30] — Phase F2: Reference Screens & Domain Feature Modules
+* **Author:** Anay Sharma
+* **Phase:** F2 (Reference Screens & Modules)
+* **Branch:** `phase_2_dev`
+* **Summary of Work Done:**
+  1. **Dashboard (`DashboardPage.tsx` at `/dashboard`):**
+     - Live KPI metric cards for Call Volume, Avg Conversation Length, Conversions, and Compliance Rate.
+     - Real-time recent call table connected to `realtimeClient` listening for streaming calls and state transitions.
+     - Conversational sentiment distribution breakdown (Positive, Neutral, Mixed, Negative).
+     - Full lead conversion funnel chart and recent leads queue.
+  2. **Calls & Transcript Auditing (`CallsPage.tsx` at `/calls` & `CallDetailPage.tsx` at `/calls/:id`):**
+     - Call logs table with search by keywords/phones, status filtering, and sentiment breakdown.
+     - Audio player scrubber bar with play/pause and 1x/1.25x/1.5x/2x speed controls.
+     - Dialogue turn viewer with speaker badges (Agent vs Customer) and transcript copy tool.
+     - Post-call Gemini 2.0 Flash structured analysis panel with executive summary, primary intent confidence meter, satisfaction score, assigned action items checklist, and risk signals with clickable evidence quote seeking.
+     - One-click "Generate Gemini Analysis" action using `useTriggerAnalysis()`.
+  3. **AI Agent Studio (`AgentsPage.tsx` at `/agents`):**
+     - Grid of conversational personas with voice, language, speed, and temperature telemetry.
+     - Modal to create and edit voice personas with system instruction prompt editor.
+     - Interactive live voice test drawer using `createVoiceSession('mock')` verifying <500ms turnaround and tool calls.
+  4. **Outbound Campaigns (`CampaignsPage.tsx` at `/campaigns`):**
+     - Outbound campaigns manager with daily budget in INR, max concurrency controls, calling hours window, and assigned agent.
+     - Real-time pause / launch campaign status toggle and campaign creation modal.
+  5. **Prospect Pipeline (`LeadsPage.tsx` at `/leads`):**
+     - Leads table with masked/unmasked phone formatting, qualification statuses, custom attributes, and search filters.
+     - Modal to create new leads with campaign assignment.
+  6. **Compliance Policy Engine (`CompliancePage.tsx` at `/compliance`):**
+     - Regulatory audit rules for required disclosures and prohibited phrases.
+     - Threshold scoring slider, breach actions (flag, escalate, terminate), and activation toggles.
+  7. **Analytics & Performance (`AnalyticsPage.tsx` at `/analytics`):**
+     - Speech telemetry tracking TTFB (<500ms), audio roundtrip, and disconnect rates.
+     - Conversion funnel chart and rolling 5-day daily velocity metrics table.
+  8. **Route Wiring & Verification:**
+     - Mounted all 8 feature views under `AppLayout` with navigation links in `Sidebar`, `Topbar`, and `CommandPalette`.
+     - Verified `npm run build` completed with 0 errors (2260 modules transformed in 1.45s).
+* **Commit Reference:** Pending Checkpoint Push F2
+
+
 
