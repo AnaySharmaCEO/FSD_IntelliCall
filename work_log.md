@@ -290,6 +290,7 @@
   6. **TypeScript & Build Verification:**
      - Exported `CallAnalysis` interface in `contracts/entities.ts`.
      - Verified production build via `npm run build` — 0 errors, 2,269 modules transformed in 1.69s.
+* **Commit Reference:** `298799e` (`fix(frontend): fix auth redirection, profile popup, and mock telemetry binding`)
 
 
 
