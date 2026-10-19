@@ -44,6 +44,12 @@ export interface AnalyticsOverview {
   avgDurationSeconds: number;
   sentimentBreakdown: { positive: number; neutral: number; negative: number; mixed: number };
   funnelMetrics: { connected: number; engaged: number; converted: number; dropped: number };
+  telemetry: {
+    ttfbMs: number;
+    roundtripMs: number;
+    disconnectRatePercent: number;
+    avgSentimentScorePercent: number;
+  };
   recentTrends: Array<{ date: string; calls: number; conversions: number; avgSentimentScore: number }>;
 }
 

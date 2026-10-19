@@ -1,9 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
+import { useToast } from '../components/ui';
 import { Search, Bell, LogOut, User, Shield } from 'lucide-react';
 
 export const Topbar: React.FC = () => {
   const { user, organization, role, signOut } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -78,33 +84,38 @@ export const Topbar: React.FC = () => {
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 rounded-[var(--radius-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] shadow-[var(--shadow-md)] py-1.5 z-50 animate-slide-up">
-              <div className="px-3.5 py-2 border-b border-[var(--color-border-subtle)]">
+            <div className="absolute right-0 mt-2 w-60 rounded-[var(--radius-md)] bg-white dark:bg-[#232327] border border-[var(--color-border-default)] shadow-xl py-2 z-50 animate-slide-up">
+              <div className="px-4 py-2.5 border-b border-[var(--color-border-subtle)]">
                 <p className="text-[13px] font-semibold text-[var(--color-text-primary)] truncate">
-                  {user?.name || 'User'}
+                  {user?.name || 'Authorized Member'}
                 </p>
-                <p className="text-[11px] text-[var(--color-text-muted)] truncate">
-                  {user?.email || 'user@example.com'}
+                <p className="text-[11px] text-[var(--color-text-muted)] font-mono truncate">
+                  {user?.email || 'member@intellicall.ai'}
                 </p>
               </div>
 
               <div className="py-1">
-                <div className="flex items-center gap-2 px-3.5 py-2 text-xs text-[var(--color-text-secondary)]">
+                <div className="flex items-center gap-2 px-4 py-2 text-xs text-[var(--color-text-secondary)]">
                   <Shield size={14} className="text-[var(--color-text-muted)]" />
-                  <span>Role: <strong className="capitalize">{role || 'Member'}</strong></span>
+                  <span>Role: <strong className="capitalize text-[var(--color-text-primary)]">{role || 'Member'}</strong></span>
                 </div>
               </div>
 
-              <div className="border-t border-[var(--color-border-subtle)] pt-1">
+              <div className="border-t border-[var(--color-border-subtle)] pt-1 mt-1">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setDropdownOpen(false);
-                    signOut();
+                    await signOut();
+                    localStorage.removeItem('intellicall_auth_token');
+                    localStorage.removeItem('sb-wdmensuuqsbnxzecqlwz-auth-token');
+                    queryClient.clear();
+                    navigate('/', { replace: true });
+                    toast('Signed out successfully', 'info');
                   }}
-                  className="flex items-center gap-2 w-full px-3.5 py-2 text-xs text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer"
+                  className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer"
                 >
                   <LogOut size={14} />
-                  <span>Sign out</span>
+                  <span>Sign out of Workspace</span>
                 </button>
               </div>
             </div>

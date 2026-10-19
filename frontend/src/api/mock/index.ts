@@ -290,6 +290,18 @@ export class MockApiClient implements ApiClient {
     const totalDuration = this.calls.reduce((acc, c) => acc + (c.duration_seconds || 0), 0);
     const avgDuration = totalCalls ? Math.round(totalDuration / totalCalls) : 0;
 
+    const recentTrends = Array.from({ length: 5 }).map((_, idx) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (4 - idx));
+      const dateStr = d.toISOString().slice(0, 10);
+      return {
+        date: dateStr,
+        calls: 12 + idx * 6,
+        conversions: 3 + idx * 2,
+        avgSentimentScore: 78 + idx * 3,
+      };
+    });
+
     return {
       totalCalls,
       totalDurationSeconds: totalDuration,
@@ -306,13 +318,13 @@ export class MockApiClient implements ApiClient {
         converted: this.leads.filter((l) => l.status === 'converted').length,
         dropped: this.calls.filter((c) => (c.duration_seconds || 0) < 30).length,
       },
-      recentTrends: [
-        { date: '2026-10-15', calls: 12, conversions: 3, avgSentimentScore: 78 },
-        { date: '2026-10-16', calls: 18, conversions: 5, avgSentimentScore: 82 },
-        { date: '2026-10-17', calls: 24, conversions: 7, avgSentimentScore: 85 },
-        { date: '2026-10-18', calls: 30, conversions: 9, avgSentimentScore: 88 },
-        { date: '2026-10-19', calls: 35, conversions: 11, avgSentimentScore: 89 },
-      ],
+      telemetry: {
+        ttfbMs: 280,
+        roundtripMs: 410,
+        disconnectRatePercent: 3.2,
+        avgSentimentScorePercent: 88,
+      },
+      recentTrends,
     };
   }
 

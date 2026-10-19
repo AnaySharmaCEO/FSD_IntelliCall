@@ -12,7 +12,7 @@ import {
   Sliders,
   Sparkles,
 } from 'lucide-react';
-import { useCalls } from '../../api/hooks';
+import { useCalls, useCallAnalysis } from '../../api/hooks';
 import { realtimeClient } from '../../realtime';
 import { StatusChip, ConfidenceMeter } from '../../components/patterns';
 import { Button, Badge, useToast } from '../../components/ui';
@@ -26,6 +26,8 @@ export const LiveCallMonitorPage: React.FC = () => {
   const [activeCall, setActiveCall] = useState<Call | null>(() => {
     return callsData?.data.find((c) => c.status === 'in_progress') || callsData?.data[0] || null;
   });
+
+  const { data: analysis } = useCallAnalysis(activeCall?.id);
 
   const [liveStreamText, setLiveStreamText] = useState<string[]>([]);
   const [bargeInActive, setBargeInActive] = useState(false);
@@ -190,21 +192,47 @@ export const LiveCallMonitorPage: React.FC = () => {
               <span className="text-[10px] text-[var(--color-text-muted)] uppercase block mb-1">
                 Detected Intent
               </span>
-              <span className="font-semibold text-[var(--color-text-primary)]">
-                Auto Loan Refinance
+              <span className="font-semibold text-[var(--color-text-primary)] capitalize">
+                {analysis?.intent_primary
+                  ? analysis.intent_primary.replace(/_/g, ' ')
+                  : activeCall
+                  ? 'Awaiting Turn Intent'
+                  : 'No Active Session'}
               </span>
             </div>
 
-            <ConfidenceMeter value={0.92} label="Acoustic Confidence" />
+            <ConfidenceMeter
+              value={analysis?.intent_confidence ?? (activeCall ? 0.92 : 0)}
+              label={analysis ? 'Intent Confidence' : 'Acoustic Stream Health'}
+            />
 
             <div className="p-3 rounded bg-[var(--color-bg-sunken)] space-y-2">
               <span className="text-[10px] text-[var(--color-text-muted)] uppercase block font-semibold">
                 Grounding Facts
               </span>
               <ul className="space-y-1 text-[11px] text-[var(--color-text-secondary)]">
-                <li>&bull; Vehicle: <strong>Hyundai Creta</strong></li>
-                <li>&bull; Requested APR: <strong>8.4%</strong></li>
-                <li>&bull; Compliance Consent: <strong className="text-[var(--color-success)]">Given</strong></li>
+                {analysis?.action_items && analysis.action_items.length > 0 ? (
+                  analysis.action_items.slice(0, 3).map((item, idx) => (
+                    <li key={idx} className="truncate">
+                      &bull; Action: <strong>{item.text}</strong>
+                    </li>
+                  ))
+                ) : (
+                  <>
+                    <li>
+                      &bull; Channel Direction: <strong>{activeCall?.direction || 'Outbound'}</strong>
+                    </li>
+                    <li>
+                      &bull; Audio Transport: <strong>24 kHz Opus</strong>
+                    </li>
+                    <li>
+                      &bull; Compliance Consent:{' '}
+                      <strong className={activeCall ? 'text-[var(--color-success)]' : 'text-[var(--color-text-muted)]'}>
+                        {activeCall ? 'Stream Active' : 'Awaiting Call'}
+                      </strong>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
           </div>

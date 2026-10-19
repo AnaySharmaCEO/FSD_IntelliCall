@@ -131,11 +131,15 @@ export const DashboardPage: React.FC = () => {
                       100,
                       Math.max(85, Math.round((complianceRules.filter((r) => r.is_active).length / complianceRules.length) * 100))
                     )}%`
-                  : '99.2%'
+                  : 'Setup Required'
               }
-              delta={{ value: 0.8, period: 'last month' }}
+              delta={complianceRules.length > 0 ? { value: 0.8, period: 'last month' } : undefined}
               icon={<ShieldCheck size={18} />}
-              hint={`${complianceRules.length} active audit rules`}
+              hint={
+                complianceRules.length > 0
+                  ? `${complianceRules.filter((r) => r.is_active).length} of ${complianceRules.length} rules active`
+                  : 'Configure rules in Compliance Engine'
+              }
             />
           </>
         )}
