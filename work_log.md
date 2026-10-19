@@ -187,7 +187,7 @@
      - Created `public.phone_numbers` table for Twilio number assignment and campaign linking with RLS.
   7. **Gemini Post-Call Edge Function:**
      - Built `supabase/functions/analysis-run/index.ts` connecting Google Gemini 2.0 Flash (`gemini-2.0-flash`) via structured JSON schema (`responseSchema`) with resilient fallback to derive actionable intelligence, risk signals, and sentiment for all processed calls.
-* **Commit Reference:** Pending commit
+* **Commit Reference:** `ec4fbc4` (`feat(backend): add phase 2 schema extensions for compliance, telemetry, and analyses`)
 
 
 
