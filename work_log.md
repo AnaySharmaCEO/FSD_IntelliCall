@@ -205,7 +205,7 @@
      - Extracted grounded qualification answers, objection categories, confidence ratings, and sentiment analysis with literal quote citations.
   3. **Tier 1.5: Serverless Resilient Fallback (`supabase/functions/analysis-run/index.ts`):**
      - Embedded `InlineGeminiProvider` directly in Deno Supabase Edge Function to guarantee uninterrupted intelligence extraction even when external worker containers are offline.
-* **Commit Reference:** Pending commit
+* **Commit Reference:** `7aee137` (`feat(ai): integrate livekit gemini live voice agent and resonology-ai service`)
 
 
 
