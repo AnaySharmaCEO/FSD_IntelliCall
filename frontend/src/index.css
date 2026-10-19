@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 html,
 body,
 #root {
@@ -27,7 +29,9 @@ body,
   --color-border-default: #DEE2E8;
   --color-border-subtle: #ECEEF2;
 
-  /* Actions & brand */
+  /* Actions & Brand */
+  --color-brand-blue: #2B4C8C;
+  --color-brand-blue-hover: #21396B;
   --color-action-primary: #2B4C8C;
   --color-action-primary-hover: #21396B;
   --color-action-primary-solid: #2B4C8C;
@@ -151,6 +155,9 @@ body,
   --color-border-default: #DEE2E8;
   --color-border-subtle: #ECEEF2;
 
+ /* Actions & Brand */
+  --color-brand-blue: #4A6DA0;
+  --color-brand-blue-hover: #5A7EB5;
   --color-action-primary: #2B4C8C;
   --color-action-primary-hover: #21396B;
   --color-action-primary-solid: #2B4C8C;
@@ -158,7 +165,6 @@ body,
   --color-action-secondary-bg: #E9EEF7;
   --color-action-secondary-text: #2B4C8C;
   --color-action-secondary-border: #D0DBEE;
-
   --color-success: #1E8E5A;
   --color-success-bg: #E4F5EC;
   --color-warning: #B7791F;

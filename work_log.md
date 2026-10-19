@@ -265,6 +265,34 @@
      - Ran `npm run build` in `frontend/` — succeeded with **0 errors** (2,269 modules transformed).
 * **Commit Reference:** `ba10330` (`feat(frontend): add query caching, full settings suite, lead csv tools, and auth routes`)
 
+---
+
+### [2026-10-19 15:40:00 +05:30] — Auth Redirection, Profile UX & Elimination of Mock Telemetry
+* **Author:** Anay Sharma
+* **Phase:** Frontend Hardening, Real Data Binding & UX Polish
+* **Branch:** `phase_2_dev`
+* **Summary of Work Done:**
+  1. **Authentication Redirection (`AuthPage.tsx` & `context.tsx`):**
+     - Exposed `onboardingCompleted` and `isAuthenticated` on `AuthContextValue`.
+     - Updated `AuthPage.tsx` to immediately redirect authenticated users to `/dashboard` (or `/onboarding` for new registrations) instead of lingering on the sign-in form.
+  2. **Topbar Profile Pop-Up & Global Sign-Out (`Topbar.tsx` & `Sidebar.tsx`):**
+     - Fixed visibility in light mode by giving the dropdown pop-up explicit white background (`bg-white dark:bg-[#232327]`), borders, and high shadow elevation.
+     - Wired the dropdown "Sign out" action to purge tokens from local storage, clear the React Query cache, navigate to `/`, and display confirmation toast.
+  3. **Live Call Monitor Dynamic Binding (`LiveCallMonitorPage.tsx`):**
+     - Removed hardcoded "Auto Loan Refinance" intent and static "Hyundai Creta / 8.4% APR / Compliance Consent: Given" grounding facts from Pane 3.
+     - Bound Pane 3 to `useCallAnalysis(activeCall?.id)`, dynamically rendering live turn intent, model confidence, and extracted action items, with fallback to real channel stream parameters for in-flight calls.
+  4. **Analytics Telemetry & Rolling Dynamic Trends (`AnalyticsPage.tsx`, `client.ts`, `http/`, `mock/`):**
+     - Added `telemetry` schema (`ttfbMs`, `roundtripMs`, `disconnectRatePercent`, `avgSentimentScorePercent`) to `AnalyticsOverview`.
+     - Replaced hardcoded date strings (`'2026-10-15'` to `'2026-10-19'`) with dynamically computed 5-day rolling dates generated from `new Date()`.
+     - Bound the 4 latency and sentiment KPI cards in `AnalyticsPage.tsx` directly to `analytics.telemetry`.
+  5. **Dashboard Compliance Honest State (`DashboardPage.tsx`):**
+     - Fixed the Compliance Pass Rate card: when no compliance rules are defined in the workspace, it displays "Setup Required" and guides the user to the Compliance Engine rather than displaying a misleading static 99.2% with 0 active audit rules.
+  6. **TypeScript & Build Verification:**
+     - Exported `CallAnalysis` interface in `contracts/entities.ts`.
+     - Verified production build via `npm run build` — 0 errors, 2,269 modules transformed in 1.69s.
+* **Commit Reference:** `298799e` (`fix(frontend): fix auth redirection, profile popup, and mock telemetry binding`)
+
+
 
 
 

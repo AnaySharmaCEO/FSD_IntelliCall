@@ -45,28 +45,28 @@ export const AnalyticsPage: React.FC = () => {
           <>
             <KPICard
               label="Turnaround Latency (TTFB)"
-              value="280 ms"
+              value={`${analytics?.telemetry?.ttfbMs ?? 280} ms`}
               delta={{ value: -14.0, period: 'last week' }}
               icon={<Zap size={18} className="text-amber-500" />}
               hint="Target <500ms achieved"
             />
             <KPICard
               label="Audio Roundtrip"
-              value="410 ms"
+              value={`${analytics?.telemetry?.roundtripMs ?? 410} ms`}
               delta={{ value: -9.5, period: 'yesterday' }}
               icon={<Activity size={18} className="text-sky-500" />}
               hint="Resonology Voice Engine stream"
             />
             <KPICard
               label="Call Disconnect Rate"
-              value="3.2%"
+              value={`${analytics?.telemetry?.disconnectRatePercent ?? 3.2}%`}
               delta={{ value: -1.1, period: 'last month' }}
               icon={<TrendingUp size={18} className="text-emerald-500" />}
               hint="Industry benchmark 8%"
             />
             <KPICard
               label="Average Sentiment Score"
-              value="88%"
+              value={`${analytics?.telemetry?.avgSentimentScorePercent ?? 88}%`}
               delta={{ value: 5.2, period: 'last week' }}
               icon={<ShieldCheck size={18} className="text-indigo-500" />}
               hint="High satisfaction"

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '../components/ui';
 import {
   LayoutDashboard,
   PhoneCall,
@@ -47,6 +49,9 @@ const navItems: NavItem[] = [
 
 export const Sidebar: React.FC = () => {
   const { organization, signOut } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [collapsed, setCollapsed] = useState(false);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -154,7 +159,14 @@ export const Sidebar: React.FC = () => {
         </button>
 
         <button
-          onClick={() => signOut()}
+          onClick={async () => {
+            await signOut();
+            localStorage.removeItem('intellicall_auth_token');
+            localStorage.removeItem('sb-wdmensuuqsbnxzecqlwz-auth-token');
+            queryClient.clear();
+            navigate('/', { replace: true });
+            toast('Signed out successfully', 'info');
+          }}
           className={cn(
             'flex items-center gap-3 w-full px-3 py-1.5 rounded-[var(--radius-sm)] text-[12px] text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer',
             collapsed ? 'justify-center px-0' : ''
