@@ -24,9 +24,9 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
   const { toast } = useToast();
   const {
     user,
-    session,
     organization,
     onboardingCompleted,
+    isAuthenticated,
     signIn,
     signUp,
     requestPasswordReset,
@@ -106,9 +106,9 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
 
   // Redirect if already authenticated and not in reset-password flow
   useEffect(() => {
-    if (session && user && mode !== "reset-password") {
+    if (isAuthenticated && user && mode !== "reset-password") {
       const from = (location.state as any)?.from?.pathname;
-      if (from && from !== "/signin" && from !== "/signup" && from !== "/auth") {
+      if (from && from !== "/signin" && from !== "/signup" && from !== "/auth" && from !== "/login") {
         navigate(from, { replace: true });
       } else if (!organization || !onboardingCompleted) {
         navigate("/onboarding", { replace: true });
@@ -116,7 +116,7 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
         navigate("/dashboard", { replace: true });
       }
     }
-  }, [session, user, organization, onboardingCompleted, mode, navigate, location.state]);
+  }, [isAuthenticated, user, organization, onboardingCompleted, mode, navigate, location.state]);
 
   // Sync mode changes with search params
   useEffect(() => {
@@ -172,7 +172,13 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
       return;
     }
 
-    toast("Signed in successfully.");
+    toast("Signed in successfully.", "success");
+    const from = (location.state as any)?.from?.pathname;
+    if (from && from !== "/signin" && from !== "/signup" && from !== "/auth" && from !== "/login") {
+      navigate(from, { replace: true });
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
   };
 
   // ==========================================================================

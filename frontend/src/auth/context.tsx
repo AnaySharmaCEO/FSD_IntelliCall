@@ -12,6 +12,7 @@ interface AuthContextValue extends AuthState {
   refresh: AuthAdapter['refresh'];
   isAuthenticated: boolean;
   role: Role | null;
+  onboardingCompleted: boolean;
   can: (permission: Permission) => boolean;
 }
 
@@ -32,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = useMemo<AuthContextValue>(() => {
     const role = state.organization?.role ?? null;
+    const onboardingCompleted = Boolean(state.organization?.onboardingCompleted);
     return {
       ...state,
       signIn: (email, pass) => authAdapter.signIn(email, pass),
@@ -40,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refresh: () => authAdapter.refresh(),
       isAuthenticated: Boolean(state.user && state.token),
       role,
+      onboardingCompleted,
       can: (permission: Permission) => hasPermission(role, permission),
     };
   }, [state]);

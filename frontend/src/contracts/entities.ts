@@ -258,3 +258,19 @@ export const AuditLogEntrySchema = z.object({
   createdAt: z.string(),
 });
 export type AuditLogEntry = z.infer<typeof AuditLogEntrySchema>;
+
+export interface CallAnalysis {
+  id: string;
+  call_id: string;
+  summary: string;
+  sentiment_overall: string;
+  intent_primary: string;
+  intent_confidence: number;
+  resolution_status: string;
+  satisfaction_score: number;
+  compliance_score: number;
+  action_items?: Array<{ text: string; owner: string; status: string; due_date?: string }>;
+  risk_signals?: Array<{ signal: string; severity: string; evidence: string; timestamp_seconds: number }>;
+  entities_extracted?: Record<string, string>;
+  created_at: string;
+}
