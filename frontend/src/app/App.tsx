@@ -5,9 +5,13 @@ import LandingPage from '../features/landing/LandingPage';
 import DashboardPage from '../features/dashboard/DashboardPage';
 import CallsPage from '../features/calls/CallsPage';
 import CallDetailPage from '../features/calls/CallDetailPage';
+import LiveCallMonitorPage from '../features/calls/LiveCallMonitorPage';
+import ReviewQueuePage from '../features/review/ReviewQueuePage';
 import AgentsPage from '../features/agents/AgentsPage';
 import CampaignsPage from '../features/campaigns/CampaignsPage';
+import CampaignWizardPage from '../features/campaigns/CampaignWizardPage';
 import LeadsPage from '../features/leads/LeadsPage';
+import AppointmentsPage from '../features/appointments/AppointmentsPage';
 import CompliancePage from '../features/compliance/CompliancePage';
 import AnalyticsPage from '../features/analytics/AnalyticsPage';
 import KitPage from '../features/kit/KitPage';
@@ -22,10 +26,14 @@ export const App: React.FC = () => {
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/calls" element={<CallsPage />} />
+        <Route path="/calls/live" element={<LiveCallMonitorPage />} />
         <Route path="/calls/:id" element={<CallDetailPage />} />
+        <Route path="/review" element={<ReviewQueuePage />} />
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />
+        <Route path="/campaigns/new" element={<CampaignWizardPage />} />
         <Route path="/leads" element={<LeadsPage />} />
+        <Route path="/appointments" element={<AppointmentsPage />} />
         <Route path="/compliance" element={<CompliancePage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
 

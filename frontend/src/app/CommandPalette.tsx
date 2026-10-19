@@ -76,6 +76,20 @@ export const CommandPalette: React.FC = () => {
                 <span>Calls & Auditing</span>
               </Command.Item>
               <Command.Item
+                onSelect={() => runCommand(() => navigate('/calls/live'))}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-[var(--radius-sm)] text-[13px] text-[var(--color-text-primary)] cursor-pointer hover:bg-[var(--color-bg-sunken)] aria-selected:bg-[var(--color-action-secondary-bg)] aria-selected:text-[var(--color-action-primary)]"
+              >
+                <PhoneCall size={15} />
+                <span>Live Call Monitor</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => runCommand(() => navigate('/review'))}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-[var(--radius-sm)] text-[13px] text-[var(--color-text-primary)] cursor-pointer hover:bg-[var(--color-bg-sunken)] aria-selected:bg-[var(--color-action-secondary-bg)] aria-selected:text-[var(--color-action-primary)]"
+              >
+                <ShieldCheck size={15} />
+                <span>Decision Review Queue</span>
+              </Command.Item>
+              <Command.Item
                 onSelect={() => runCommand(() => navigate('/agents'))}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-[var(--radius-sm)] text-[13px] text-[var(--color-text-primary)] cursor-pointer hover:bg-[var(--color-bg-sunken)] aria-selected:bg-[var(--color-action-secondary-bg)] aria-selected:text-[var(--color-action-primary)]"
               >

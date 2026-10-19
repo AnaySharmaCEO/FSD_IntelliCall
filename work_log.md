@@ -114,10 +114,23 @@
   7. **Analytics & Performance (`AnalyticsPage.tsx` at `/analytics`):**
      - Speech telemetry tracking TTFB (<500ms), audio roundtrip, and disconnect rates.
      - Conversion funnel chart and rolling 5-day daily velocity metrics table.
-  8. **Route Wiring & Verification:**
-     - Mounted all 8 feature views under `AppLayout` with navigation links in `Sidebar`, `Topbar`, and `CommandPalette`.
-     - Verified `npm run build` completed with 0 errors (2260 modules transformed in 1.45s).
-* **Commit Reference:** `ece939f` (`feat(frontend): complete Phase F2 reference screens and domain feature modules`)
+  8. **Decision Review Queue (`ReviewQueuePage.tsx` at `/review`):**
+     - Split-pane human-in-the-loop review interface with flagged call items list and supervisor approval panel.
+     - Synthesis view with confidence meters, quote citations, and Approve / Override actions.
+  9. **Live Call Monitor (`LiveCallMonitorPage.tsx` at `/calls/live`):**
+     - 3-pane real-time audio telemetry console: active concurrent line channels, 24 kHz PCM acoustic waveform visualization, and streaming turns scroll.
+     - Live intent confidence tracker and supervisor barge-in / takeover toggle.
+  10. **Calendar & Commitments (`AppointmentsPage.tsx` at `/appointments`):**
+      - Scheduled callback and consultation cards with confirmed vs proposed status badges.
+      - Modal to schedule new callbacks and automated invitation re-send triggers.
+  11. **Campaign Launch Wizard (`CampaignWizardPage.tsx` at `/campaigns/new`):**
+      - 4-step wizard: Basics & Product &rarr; AI Voice Agent &rarr; Pacing & Hours &rarr; Preflight Safety Gate.
+      - Integrated checklist validating phone trunks, Gemini token quota, and calling window laws.
+  12. **Route Wiring & Verification:**
+      - Mounted all 12 reference views under `AppLayout` with navigation links in `Sidebar`, `Topbar`, and `CommandPalette`.
+      - Verified `npm run build` completed with 0 errors (2264 modules transformed in 1.59s).
+* **Commit Reference:** Pending Checkpoint Push F2.2
+
 
 
 
