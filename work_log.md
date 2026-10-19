@@ -207,6 +207,29 @@
      - Embedded `InlineGeminiProvider` directly in Deno Supabase Edge Function to guarantee uninterrupted intelligence extraction even when external worker containers are offline.
 * **Commit Reference:** `7aee137` (`feat(ai): integrate livekit gemini live voice agent and resonology-ai service`)
 
+---
+
+### [2026-10-19 13:58:00 +05:30] — Supabase Cloud Live Migration Push & Edge Function Deployment
+* **Author:** Anay Sharma
+* **Phase:** Backend Cloud Deployment & Terminal Automation
+* **Branch:** `phase_2_dev`
+* **Summary of Work Done:**
+  1. **Terminal Connectivity Verification:**
+     - Verified Supabase CLI linking with cloud project `wdmensuuqsbnxzecqlwz` (`IntelliCall`, South Asia Mumbai).
+  2. **Cloud Database Migration Execution (`supabase db push`):**
+     - Pushed and verified all pending forward-only migrations directly to Supabase Cloud:
+       - `20260907000006_enable_data_api.sql`
+       - `20260907000007_onboarding_schema.sql`
+       - `20261019000001_phase_2_schema_extensions.sql` (fixed enum casting for transactional safety)
+     - `supabase migration list` confirms all 8 migrations are live on the remote database.
+  3. **Cloud Edge Function Deployment:**
+     - Deployed `analysis-run` to Supabase Cloud using `supabase functions deploy analysis-run --no-verify-jwt`.
+     - Remote status confirmed `ACTIVE` (v1) alongside the 4 foundational webhook/cron functions.
+  4. **Automated Cloud Synchronization Scripts:**
+     - Created `scripts/deploy-supabase-cloud.ps1` (PowerShell) and `scripts/deploy-supabase-cloud.sh` (Bash) to connect the terminal to Supabase, audit migration differences, push SQL schemas, and deploy edge functions in one command.
+* **Commit Reference:** Pending commit
+
+
 
 
 

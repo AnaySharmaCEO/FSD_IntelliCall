@@ -127,7 +127,7 @@ CREATE POLICY "Service role or admins can insert call analyses"
     call_id IN (
       SELECT c.id FROM public.calls c
       JOIN public.organization_members m ON c.organization_id = m.organization_id
-      WHERE m.user_id = auth.uid() AND m.status = 'active' AND m.role IN ('owner', 'admin', 'manager')
+      WHERE m.user_id = auth.uid() AND m.status = 'active' AND m.role::text IN ('owner', 'admin', 'manager')
     )
   );
 
