@@ -29,6 +29,7 @@ Companion docs:
 10. **India-first.** Currency ₹ with `en-IN` grouping (₹1,25,000), IST default timezone, `+91` phone handling, Devanagari rendering. No US-only assumptions baked into components (keep formatters/locales in one place so a US profile can be added later).
 11. **Secrets never reach the browser.** Only `VITE_`-style public config (Supabase URL + anon key, API base URL, LiveKit URL). No LLM or telephony keys in frontend code.
 12. **No purple gradients, glow effects, or decorative AI imagery.** See design system.
+13. **Design translation & extension.** Every new screen, modal, drawer, panel, and component introduced from the specification MUST be translated directly into our existing design system and color schema (`frontend/src/index.css`, IBM Plex Sans/Mono, `--color-*` tokens, existing custom UI components). If an AI-introduced state or component requires an element not currently in our app, **extend** our existing CSS variables and component variants to accommodate it seamlessly. Never leave a screen unaligned with the app's established look and feel.
 
 ---
 

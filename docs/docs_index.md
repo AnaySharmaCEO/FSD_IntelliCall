@@ -16,6 +16,8 @@ Start here. New files use lowercase snake_case; older files are uppercase. Names
 | `testing_strategy.md` | add a feature or change CI | Binding |
 | `deployment_and_ci.md` | ship, release, or demo | Binding |
 | `voice_and_ai_service.md` | work on the voice worker or AI service | Binding |
+| `ai_llm_architecture.md` | connect LLM, select models, engineer low latency, or integrate voice | Binding |
+| `implementation.md` | need the concrete execution roadmap, phase order, and checkpoints | Master Guide |
 | `COMPETITIVE_BENCHMARK.md` | want context on why features exist | Context |
 | `PHASE_PROMPTS.md` | want copy-paste prompts to hand to the IDE agent for each phase | Instruction |
 | `frontend/DECISIONS.md` | want to know why a small choice was made | Log, append only |
@@ -24,9 +26,9 @@ Start here. New files use lowercase snake_case; older files are uppercase. Names
 | `adr/` | want the reasoning behind a major decision | Records |
 
 ## Precedence when documents disagree
-1. `security_and_privacy.md` and `AGENTS.md`
+1. `security_and_privacy.md`, `ai_llm_architecture.md`, and `AGENTS.md`
 2. `engineering_standards.md`
-3. `backend_update.md` and `frontend_update.md` (newer than the specs)
+3. `implementation.md`, `backend_update.md`, and `frontend_update.md` (newer than the specs)
 4. `FRONTEND_SPEC.md` and `frontend/*.md`
 5. Reference screens (visual only)
 

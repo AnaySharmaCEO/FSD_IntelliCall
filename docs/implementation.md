@@ -1,425 +1,249 @@
 # implementation.md: How We Implement the Next Phase Plan
 
-**Read after:** `docs_index.md`, `FRONTEND_SPEC.md`, `frontend_update.md`, `backend_update.md`  
-**Audience:** The development team. This file answers "how do we actually execute the plan in code, given our existing project?"
+**Read after:** `docs_index.md`, `FRONTEND_SPEC.md`, `frontend_update.md`, `backend_update.md`, `ai_llm_architecture.md`  
+**Audience:** The development team and IDE agents.  
+**Purpose:** Actionable, step-by-step master roadmap answering "how do we implement this plan in code on our actual stack?"
 
 ---
 
-## 0. State of the Project Right Now
+## 0. Current Project Baseline & Architecture Truths
 
-| Layer | What exists | What's needed |
+| Layer | Actual Current State | Target Next Phase State |
 |---|---|---|
-| **Frontend** | React 19 + Vite 8 + React Router v7 + Tailwind 4. Custom components (Button, Sidebar, Topbar, Modal, Drawer, FilterBar, etc.). Full Supabase auth (`AuthContext`). Pages for Dashboard, Leads, Campaigns, Agents, Calls, Decisions, Outcomes, Strategies, Settings, Auth, Onboarding. Hooks calling Supabase directly. | New architecture seams (ApiClient/RealtimeClient/VoiceSessionClient/AuthAdapter), TanStack Query, shadcn/ui, Zod contracts, mock layer, new screens from the spec, complete feature set |
-| **Backend (Supabase)** | 7 migrations live on cloud project (profiles, organizations, organization_members, leads, agents, campaigns, calls, transcripts, decisions, etc.). 4 Edge Functions (handle-call-webhook, handle-appointment-webhook, process-ai-decision, trigger-scheduled-calls). | New `api` Edge Function (Hono), renamed/refactored functions, additional tables (review_items, appointments, tasks, jobs, notifications, audit_logs, etc.), full RLS coverage, policy engine, analysis pipeline |
-| **Backend (Python)** | Does not exist yet | voice-agent (LiveKit), resonology-ai (FastAPI) |
+| **Git Working Branch** | Active branch: **`phase_2_dev`** (branched from `main`). | All phase work and intermediate steps are developed and pushed as checkpoints on `phase_2_dev`. Merged to `main` only after complete verification. |
+| **Backend & Database** | **Supabase Cloud** (linked via `.supabase/.temp/project-ref`). 7 live migrations applied. 4 existing Edge Functions. Connected via API Key & project URL. | Remains 100% on Supabase Cloud. Extended with forward-only SQL migrations via `supabase db push`. Unified REST API Edge Function (`api` via Hono), robust RLS, and async job queues. |
+| **Frontend** | React 19 + Vite 8 + React Router v7 + Tailwind 4. Custom design system in `frontend/src/index.css` with IBM Plex Sans / Mono, `--color-*` token system. Existing custom components (`Button`, `Badge`, `Drawer`, `Modal`, `Tabs`, `FilterBar`, etc.). | Translated & extended into the new Next Phase screens, adopting the four seam interfaces (`ApiClient`, `RealtimeClient`, `VoiceSessionClient`, `AuthAdapter`), TanStack Query, and complete mock layer. |
+| **AI & Voice Services** | Currently stubbed in edge functions. | **Late-stage integration** after frontend & backend are AI-ready. Two-tier architecture: Gemini Live API (<500ms voice conversation) via LiveKit Agents + Gemini 2.0 Flash (post-call structured extraction). |
 
 ---
 
-## 1. Execution Order (Big Picture)
+## 1. Core Implementation Principles
+
+### 1.1 Strict Design Translation & Extension Rule
+> [!IMPORTANT]
+> **Every new screen, modal, drawer, panel, card, and element introduced by the Next Phase specification MUST be translated directly into our current design spec and color schema.**
+> - **Primary Font Stack:** `IBM Plex Sans` for all UI text, `IBM Plex Mono` for metrics, timestamps, and numbers (`--font-ui`, `--font-data`). Add `Noto Sans Devanagari` only for Hindi transcript text.
+> - **Primary Color Palette:** `--color-action-primary: #2B4C8C` (our navy brand blue), `--color-bg-primary: #F7F8FA`, `--color-bg-surface: #FFFFFF`, `--color-text-primary: #171B24`, and semantic status tokens (`--color-success`, `--color-warning`, `--color-error`, `--color-info`).
+> - **Dark Mode:** Governed strictly by `[data-theme="dark"]` in `index.css`.
+> - **Never introduce unaligned styling:** Do not copy raw external hex colors or foreign UI styles.
+> - **Extend when needed:** If a newly introduced feature requires a specific state, outline, or badge not currently in `index.css` (e.g. proposed dashed border, confidence level meter, audio seek region):
+>   1. Add new semantic variables to `frontend/src/index.css` under `:root` and `[data-theme="dark"]` following our `--color-*` convention.
+>   2. Extend existing custom components (`Button`, `Badge`, `Drawer`, `Modal`, `Tabs`) with new variants/props rather than building duplicate components.
+
+### 1.2 Git Checkpoint & Push Strategy
+All development takes place on the **`phase_2_dev`** branch with regular checkpoint pushes:
+- **Phase-Level Checkpoints:** Pushed to GitHub at the conclusion of every phase (e.g. `B0`, `F0`, `F1`, `B1`, etc.).
+- **Step-Level Checkpoints:** Pushed to GitHub after every major milestone or step *within* a phase (e.g., after Zod contracts compiled, after App Shell built, after Dashboard screen ported, after Migration applied).
+- **Verification Rule:** Before pushing any checkpoint commit, run typecheck, lint, and build:
+  ```bash
+  # Verification suite
+  npm run typecheck --prefix frontend
+  npm run build --prefix frontend
+  git add .
+  git commit -m "feat(<scope>): <concise checkpoint description>"
+  git push origin phase_2_dev
+  ```
+
+### 1.3 Staged AI Integration: "Frontend & Backend Ready for AI Before It"
+To avoid costly LLM usage and brittle development dependencies:
+1. **Frontend & Backend are built first with a complete AI-Ready Mock Simulator:**
+   - Database tables for calls, transcript segments, conversation analyses, decisions, evidence, and actions are created.
+   - Frontend components (Evidence Chips, Evidence Panel, Confidence Meter, Live Transcript View, Audio Waveform) are fully functional.
+   - The mock call simulator emits realistic events (dialing $\rightarrow$ ringing $\rightarrow$ in-progress audio turns $\rightarrow$ analyzing $\rightarrow$ completed analysis with citations).
+2. **Real AI & LLM Connection occurs in the LATE STAGE (Phase 11):**
+   - Connecting Google Gemini Live API and Gemini 2.0 Flash is executed only after the application UI and backend pipelines are 100% verified and stable.
+
+---
+
+## 2. High-Level Execution Flow
 
 ```
-B0 Audit ──────────────────────────────────────────────────────► (blocking gate)
-    │
-    ▼
-F0 Frontend Audit + Branch ────────────────────────────────────► (blocking gate: show MIGRATION_MAP.md)
-    │
-    ├── F1 Foundation + Design System ─────────────────────────► (parallel with B1)
-    │       ↓
-    │   F2 Port 9 reference screens ──────────────────────────►
-    │       ↓
-    │   F3 Remaining screens + modals ────────────────────────►
-    │
-    ├── B1 Foundation (api skeleton, org/auth/me) ─────────────► Switch auth domain to API
-    │       ↓
-    │   B2 Leads ─────────────────────────────────────────────► Switch leads
-    │       ↓
-    │   B3 Agents ────────────────────────────────────────────► Switch agents
-    │       ↓
-    │   B4 Campaigns + Compliance ────────────────────────────► Switch campaigns
-    │       ↓
-    │   B5 Calls ─────────────────────────────────────────────► Switch calls
-    │       ↓
-    │   B6 Intelligence (AI pipeline) ───────────────────────► Switch review queue
-    │       ↓
-    │   B7 Scheduling (appointments, tasks) ─────────────────► Switch appointments
-    │       ↓
-    │   B8 Analytics + Platform ──────────────────────────────► Switch dashboard/insights
-    │
-    └── Voice + AI services (Python) ──────────────────────────► After B5 is done
-
-F4 Retire legacy-src ──────────────────────────────────────────► After F3 + all domains switched
-F5 Final swap to real data ─────────────────────────────────────► After B9
+[ B0: Backend Audit ] (Cloud Supabase Inspection) ──► Checkpoint Push
+         │
+         ▼
+[ F0: Frontend Audit & Branching ] (MIGRATION_MAP.md) ──► Checkpoint Push
+         │
+         ├────────────────────────────────────────┬────────────────────────────────────────┐
+         ▼                                        ▼                                        ▼
+[ F1: Foundation & Design System ]        [ B1: Backend Foundation ]              [ F0-F3 Prep ]
+(Seams, Zod Contracts, Tokens in index.css) (api Hono Function, RLS, Orgs)         (Contracts Shared)
+         │                                        │
+         ▼ (Step Checkpoints)                     ▼ (Step Checkpoints)
+[ F2: Port 9 Reference Screens ]          [ B2: Leads API & Tables ]
+(Dashboard, Leads, Calls, Review, etc.)           │
+         │                                        ▼
+         ▼                                [ B3: Agents API & Versions ]
+[ F3: Remaining Screens & Modals ]                │
+(Auth, Onboarding, Campaigns, Settings)           ▼
+         │                                [ B4: Campaigns & Dialer Tick ]
+         │                                        │
+         │                                        ▼
+         │                                [ B5: Calls, Transcripts & Storage ]
+         │                                        │
+         │                                        ▼
+         │                                [ B6: Intelligence & Policy Engine ]
+         │                                        │
+         │                                        ▼
+         │                                [ B7: Scheduling & Appointments ]
+         │                                        │
+         │                                        ▼
+         │                                [ B8: Analytics & System Status ]
+         │                                        │
+         └───────────────────┬────────────────────┘
+                             │
+                             ▼
+              [ F4: Retire Legacy Code ] ──► Checkpoint Push
+                             │
+                             ▼
+              [ F5: Switch Domains to Real Supabase Cloud API ] ──► Checkpoint Push
+                             │
+                             ▼
+        [ PHASE 11: LATE STAGE — AI LLM & VOICE INTEGRATION ]
+        - LiveKit Agents Python Worker (Gemini Live API <500ms)
+        - Resonology AI Service (Gemini 2.0 Flash Structured JSON)
+        - InlineGeminiProvider Edge Function Fallback
+        - Live Web Call Testing in Browser
+                             │
+                             ▼
+              [ Final Hardening & Production Push to main ]
 ```
 
 ---
 
-## 2. Phase B0 — Backend Audit (Start Here)
+## 3. Detailed Phase Roadmap & Checkpoints
 
-**Who:** Backend developer  
-**Output:** `docs/backend/AUDIT.md`  
-**Blocking:** All backend phases. Do not write any new migration until this is done.
+### Phase B0: Cloud Supabase Backend Audit
+- **Goal:** Formally audit the 7 existing cloud migrations and 4 Edge Functions. Output `docs/backend/AUDIT.md`.
+- **Checkpoint Commit:** `docs(backend): complete B0 cloud supabase and schema audit` $\rightarrow$ `git push origin phase_2_dev`
 
-### What to audit:
+### Phase F0: Frontend Audit & Migration Map
+- **Goal:** Document stack facts (React 19, Vite 8, React Router v7, Tailwind 4), map existing routes to Next Phase screens, catalogue Supabase calls. Output `docs/frontend/MIGRATION_MAP.md`.
+- **Checkpoint Commit:** `docs(frontend): complete F0 migration map and route audit` $\rightarrow$ `git push origin phase_2_dev`
 
-**Existing migrations** (read each file in `supabase/migrations/`):
+### Phase F1: Foundation, Seams & Design System Extension
+- **Step F1.1 (Scaffold):** Move `frontend/src` $\rightarrow$ `frontend/legacy-src`. Create fresh `src/` directory tree per `FRONTEND_SPEC.md §3.2`.  
+  *Checkpoint:* `chore(frontend): scaffold clean src directory structure`
+- **Step F1.2 (Dependencies):** Install `@tanstack/react-query`, `@tanstack/react-table`, `react-hook-form`, `zod`, `sonner`, `cmdk`, `@fullcalendar/*`, `wavesurfer.js`, `date-fns`, `libphonenumber-js`.  
+  *Checkpoint:* `chore(frontend): install core dependencies for phase 2`
+- **Step F1.3 (Design System Extension):** Extend `frontend/src/index.css` with missing tokens while preserving existing IBM Plex typography and `--color-*` palette.  
+  *Checkpoint:* `feat(design): extend index.css tokens and component styles`
+- **Step F1.4 (Contracts):** Implement Zod schemas in `src/contracts/` (`entities.ts`, `enums.ts`, `voice.ts`, `analysis.ts`).  
+  *Checkpoint:* `feat(contracts): define zod schemas for entities and enums`
+- **Step F1.5 (Seams & Auth):** Implement `AuthAdapter` (wrapping existing `AuthContext` logic with `organization_members` table), `ApiClient` interface with mock store, `RealtimeClient`, and `VoiceSessionClient`.  
+  *Checkpoint:* `feat(seams): implement auth, api client, and realtime seam interfaces`
+- **Step F1.6 (App Shell & Kit):** Build `AppLayout`, `Sidebar`, `Topbar`, command palette (`cmdk`), and create `/__kit` preview page for all pattern components.  
+  *Checkpoint:* `feat(shell): build app shell, command palette, and pattern component kit` $\rightarrow$ `git push origin phase_2_dev`
 
-| Migration | What it creates |
-|---|---|
-| `20260907000001_foundation.sql` | `profiles`, `organizations` (with `slug`), `organization_members` (role, status), `is_org_member()` function |
-| `20260907000002_core_schema.sql` | `lead_status`, `agent_status`, `campaign_status`, `call_status` enums; `agents`, `campaigns`, `leads`, `campaign_leads`, `lead_status_history`, `calls`, `transcripts`, `transcript_turns`, `decisions`, `evidence_signals`, `actions`, `outcomes`, `appointments`, `follow_ups`, `audit_log` tables |
-| `20260907000003_rls_policies.sql` | RLS on all tables above |
-| `20260907000004_triggers.sql` | `touch_updated_at` trigger on all tables |
-| `20260907000005_storage.sql` | `call-recordings` bucket |
-| `20260907000006_enable_data_api.sql` | Grants to `authenticated`, adds tables to `supabase_realtime` |
-| `20260907000007_onboarding_schema.sql` | `created_by`, `onboarding_completed`, `onboarding_progress` columns on `organizations` |
+### Phase F2: Port 9 Reference Screens (Using Existing Design Specs)
+Each screen translates visual layouts from `IntelliCall Screens.html` into our IBM Plex + `#2B4C8C` design system:
+- **Step F2.1:** Dashboard (`/dashboard`) — KPI cards, outcome funnel, trend charts, action queue, health tiles.  
+  *Checkpoint:* `feat(screens): port dashboard with existing design tokens`
+- **Step F2.2:** Leads & Lead Drawer (`/leads`) — TanStack DataTable, filter bar, bulk action bar, right-hand lead drawer.  
+  *Checkpoint:* `feat(screens): port leads table and entity drawer`
+- **Step F2.3:** Review Queue (`/review`) — Split-pane review interface, evidence signals, keyboard shortcuts (`a`, `e`, `r`, `j`, `k`).  
+  *Checkpoint:* `feat(screens): port review queue and approval panel`
+- **Step F2.4:** Calls & Live Monitor (`/calls`, `/calls/live`, `/calls/:id`) — 3-pane live call monitor, transcript stream, audio player with evidence seeks, action ledger.  
+  *Checkpoint:* `feat(screens): port calls history, live monitor, and call detail`
+- **Step F2.5:** AI Agents & Test Console (`/agents`, `/agents/:id`) — Agent detail tabs and interactive voice test console with mock audio level meter.  
+  *Checkpoint:* `feat(screens): port agent management and test console`
+- **Step F2.6:** Campaign Wizard (`/campaigns/new`) — 7-step campaign creation wizard with preflight validation checklist.  
+  *Checkpoint:* `feat(screens): port 7-step campaign wizard and preflight`
+- **Step F2.7:** Appointments (`/appointments`) — FullCalendar (free views) with proposed vs confirmed visual distinction.  
+  *Checkpoint:* `feat(screens): port appointments calendar and list view`
+- **Step F2.8:** Compliance Center (`/compliance`) — Overview tab, DND status checks, calling windows, and suppression rules.  
+  *Checkpoint:* `feat(screens): port compliance center and rules manager` $\rightarrow$ `git push origin phase_2_dev`
 
-**Existing Edge Functions** (read each):
-
-| Existing function | Maps to plan function | Status |
-|---|---|---|
-| `trigger-scheduled-calls` | `dialer-tick` | Rewrite: adapt to LiveKit dispatch, use `claim_dialable_leads` RPC |
-| `handle-call-webhook` | `voice-events` | Rewrite: add HMAC auth, segment deduplication, analysis job enqueue |
-| `process-ai-decision` | `analysis-run` | Rewrite: add `AnalysisProvider` interface, policy engine, action ledger |
-| `handle-appointment-webhook` | Part of `voice-tools` or new `calendar-webhook` | Rewrite: migrate to internal CalendarProvider, confirm via `confirm_appointment` RPC |
-
-**Schema reconciliation needed** (write in AUDIT.md):
-1. Existing `organization_members` vs plan's `memberships` — keep `organization_members` name, update references in plan code
-2. Existing `call_status` enum values vs plan's values — list differences, write a migration to add missing values
-3. Existing `transcripts` + `transcript_turns` vs plan's `transcript_segments` — consolidate or alias
-4. Existing `evidence_signals` vs plan's `evidence` — rename or create view
-5. Existing `outcomes` + `follow_ups` vs plan's `appointments` + `tasks` — check overlap, extend or rename
-6. Existing `audit_log` vs plan's `audit_logs` — check column shape, add missing columns
+### Phase F3: Remaining Screens, Modals & Polish
+- Port Auth pages (login, signup, OTP verification, password reset).
+- Port 4-step Onboarding flow (`/onboarding`).
+- Port Campaigns list & Campaign detail tabs.
+- Port Follow-ups tasks board & list.
+- Port Insights & conversation intelligence drill-downs.
+- Port all Settings pages (organization, team & roles, calling, API keys, webhooks, audit log).
+- Build all modals and drawers from `docs/frontend/03-modals-and-panels.md`.  
+*Checkpoint:* `feat(screens): complete remaining screens, settings, and modal dialogs` $\rightarrow$ `git push origin phase_2_dev`
 
 ---
 
-## 3. Phase F0 — Frontend Audit (Start Here, in parallel with B0)
+## 4. Backend Cloud Phases (B1 – B8)
 
-**Who:** Frontend developer  
-**Output:** `docs/frontend/MIGRATION_MAP.md`  
-**Blocking:** All frontend phases.
+All backend schema updates are created as forward-only migrations and pushed directly to **Supabase Cloud**:
 
-### Steps:
-1. `git checkout -b feat/frontend-v2`
-2. `git tag legacy-frontend-final`
-3. Write `MIGRATION_MAP.md` using the pre-filled table in `frontend_update.md §F0`
-4. Catalogue all direct Supabase calls in `src/hooks/` and `src/services/` — these are the seams that must move to `src/api/http/` in F5
-5. Show the map before proceeding
-
----
-
-## 4. Phase F1 — Foundation and Design System
-
-**Who:** Frontend developer  
-**Prerequisite:** F0 MIGRATION_MAP.md approved
-
-### Steps:
-
-#### 4.1 Scaffold new src
 ```bash
-git mv frontend/src frontend/legacy-src
-```
-- Add `legacy-src` to `.gitignore` patterns in `tsconfig.json` `exclude`, ESLint `ignorePatterns`
-- Create `frontend/src/` with folder structure from `FRONTEND_SPEC.md §3.2`
-
-#### 4.2 Install dependencies
-```bash
-cd frontend
-npm install @tanstack/react-query @tanstack/react-table react-hook-form zod sonner cmdk
-npm install @fullcalendar/react @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/list @fullcalendar/interaction
-npm install wavesurfer.js livekit-client @livekit/components-react
-npm install date-fns date-fns-tz libphonenumber-js
-npx shadcn@latest init  # choose Tailwind v4 option when prompted
+# Workflow for every backend phase
+supabase migration new <phase_name>
+# Edit supabase/migrations/<timestamp>_<phase_name>.sql
+supabase db push
+supabase gen types typescript --linked > supabase/functions/_shared/db/database.types.ts
+supabase functions deploy <function_name>
 ```
 
-#### 4.3 Design tokens
-- **Do NOT rewrite `index.css`** — extend it
-- Add any missing tokens (e.g. `--pending`) to the existing `:root` block
-- Map spec token names to actual token names per `01-design-system-and-shell.md §2`
-- Add Noto Sans Devanagari to the Google Fonts import in `index.css`
-
-#### 4.4 Zod contracts
-- Create `src/contracts/` with one file per entity group: `entities.ts`, `enums.ts`, `voice.ts`, `analysis.ts`
-- Use entities from `docs/frontend/04-data-model-and-metrics.md §1`
-- Enums from §2 of same file
-
-#### 4.5 Auth seam (critical — use existing logic)
-```typescript
-// src/auth/adapter.ts  — interface only
-export interface AuthAdapter {
-  getSession(): Promise<Session | null>
-  signIn(email: string, password: string): Promise<{error: Error | null}>
-  signUp(email: string, password: string, name?: string): Promise<{...}>
-  signOut(): Promise<void>
-  onAuthChange(callback: (session: Session | null) => void): () => void
-  getMembership(userId: string): Promise<{orgId: string; role: string} | null>
-}
-
-// src/auth/supabase.ts — wraps EXISTING AuthContext logic
-// Uses organization_members table (NOT memberships) — matches our schema
-```
-
-#### 4.6 ApiClient seam
-```typescript
-// src/api/client.ts
-export interface ApiClient { /* all methods from 05-api-realtime-and-ai-contracts.md */ }
-
-// src/api/mock/index.ts  — in-memory store, seeded from 06-mock-data-and-states.md
-// src/api/http/index.ts  — fetch + VITE_API_BASE_URL + auth header + X-Org-Id
-```
-
-#### 4.7 Mock store
-- In-memory, `localStorage`-persisted for refresh continuity
-- Seeded from scenarios S1–S14 (to be defined in `scripts/scenarios/*.json`)
-- 150–600 ms simulated latency
-- Injectable failures via Dev toolbar (slow network, 500s, empty, permission denied)
-- Call simulator: queued → dialing → ringing → answered → in_progress → ended → analyzing → completed
-
-#### 4.8 App shell
-- Rebuild `AppLayout`, `Sidebar`, `Topbar` from scratch in new `src/`
-- Sidebar nav order: Dashboard · Leads · Campaigns · Calls · Review Queue · AI Agents · Appointments · Follow-ups · Insights · Compliance · Notifications · Audit Log · Settings
-- Command palette: `cmdk` (⌘K / Ctrl+K)
-- Toast: use `sonner` (replace existing `ToastProvider` — but keep old one in `legacy-src` until F4)
-
-#### 4.9 Pattern components (build all, create `/__kit`)
-All components from `docs/frontend/01-design-system-and-shell.md §4`:
-`KPICard`, `FunnelChart`, `InsightCard`, `ActionQueue`, `EvidencePanel`, `EvidenceChip`, `ConfidenceMeter`, `StatusChip`, `DataTable` (TanStack Table), `FilterBar`, `EntityDrawer`, `Timeline`, `AuditTrail`, `EmptyState`, `ErrorState`, `PermissionGate`, `Stepper/Wizard`, `AudioPlayer` (wavesurfer), `TranscriptView`, `CallStateBadge`, `PhoneText`, `CurrencyText`, `RelativeTime`, `ComplianceBadge`, `ChannelBadge`
+- **B1 (Foundation):** `api` Edge Function with Hono router; `create_organization` RPC; tenancy validation; CORS restricted to `ALLOWED_ORIGINS`.  
+  *Checkpoint:* `feat(backend): deploy api edge function and foundation tenancy rpc`
+- **B2 (Leads):** Migration for compliance fields, consent history, DND flags; CSV import job runner.  
+  *Checkpoint:* `feat(backend): deploy leads schema extensions and import pipeline`
+- **B3 (Agents):** Migration for `agent_versions` (immutable snapshots) and knowledge documents.  
+  *Checkpoint:* `feat(backend): deploy agent versioning and knowledge tables`
+- **B4 (Campaigns & Dialer):** Campaign rules, audience snapshots; `dialer-tick` cron function with `claim_dialable_leads` RPC.  
+  *Checkpoint:* `feat(backend): deploy campaign engine and dialer tick function`
+- **B5 (Calls & Transcripts):** `calls` status transitions, `transcript_segments`, Supabase Storage policies for private recordings, Supabase Realtime publication.  
+  *Checkpoint:* `feat(backend): deploy calls, realtime transcripts, and storage buckets`
+- **B6 (Intelligence & Review):** `conversation_analyses`, `decisions`, `evidence`, `review_items`; `analysis-run` Edge Function with policy engine.  
+  *Checkpoint:* `feat(backend): deploy conversation analysis and policy engine`
+- **B7 (Scheduling):** `appointments` with exclusion constraint against double booking; `availability_rules`; `confirm_appointment` RPC.  
+  *Checkpoint:* `feat(backend): deploy appointment booking and exclusion constraints`
+- **B8 (Analytics & Platform):** Dashboard metric summary RPCs, audit log queries, system status health probes.  
+  *Checkpoint:* `feat(backend): deploy analytics rpc functions and platform services` $\rightarrow$ `git push origin phase_2_dev`
 
 ---
 
-## 5. Phase F2 — Port the Reference Screens
+## 5. Phase F4 & F5: Retirement & Domain Switching
 
-**Who:** Frontend developer  
-**Prerequisite:** F1 complete (`/__kit` passes visual check)
-
-### Order (from `frontend_update.md §F2`):
-1. **Dashboard** — KPI strip, funnel, trend chart (Recharts — already installed), action queue, insight cards, health tiles
-2. **Leads** — DataTable + lead drawer (EntityDrawer) replacing the old detail page
-3. **Review Queue** — Split-pane workspace, keyboard shortcuts a/e/r/j/k
-4. **Calls** — Live Calls (3-pane) + Call Detail (audio player, transcript, evidence, action ledger)
-5. **Agents** — Test Console (MockVoiceSession + mic meter)
-6. **Campaign Wizard** — 7-step wizard shell with preflight
-7. **Appointments** — FullCalendar (daygrid + timegrid + list + interaction; free only)
-8. **Compliance** — Overview tab + 5 detail tabs
-
-### Per screen checklist:
-- [ ] Hook in `src/api/hooks/` with TanStack Query
-- [ ] Mock endpoints return seed data for relevant scenarios
-- [ ] All states: loading (skeleton), empty (with CTA), error (with requestId), forbidden
-- [ ] Light + dark mode
-- [ ] Responsive at 390px (tables → cards, panels → bottom sheets)
-- [ ] Playwright screenshot at 1440px vs reference HTML
+- **F4 (Retire Legacy):** Verify all routes in `MIGRATION_MAP.md` are resolved. Delete `frontend/legacy-src/`. Clean up unused dependencies.  
+  *Checkpoint:* `chore(frontend): remove legacy-src and finalize phase 2 codebase`
+- **F5 (Real Data Swap):** Switch domains one by one in `frontend/.env.local`:
+  ```bash
+  VITE_DATA_SOURCE=api
+  VITE_API_BASE_URL="https://<project-ref>.supabase.co/functions/v1/api"
+  ```
+  *Checkpoint:* `feat(integration): connect frontend to live cloud supabase edge api` $\rightarrow$ `git push origin phase_2_dev`
 
 ---
 
-## 6. Phase F3 — Remaining Screens and Modals
+## 6. Phase 11: Late-Stage AI LLM & Voice Integration
 
-All screens not covered by the 9 reference screens (from `frontend_update.md §F3`):
-- Auth pages (login, signup, OTP verify, forgot password, accept invite)
-- Onboarding (4-step wizard)
-- Campaigns list + Campaign detail (6 tabs)
-- Calls list (history table with transcript search)
-- Agents list + template gallery
-- Follow-ups (task list + board)
-- Insights (objections, intents, script performance, timing, quality, AI evaluation)
-- Notifications center
-- Audit Log (with diff drawer)
-- Settings (all sub-pages: org, team & roles, calling, voice/AI engine, integrations, usage & billing, API & webhooks, data & privacy, preferences, system status)
-- Error pages (404, 403, 500)
-- All modals from `docs/frontend/03-modals-and-panels.md`
+Executed **only after** Phases F1–F5 and B1–B8 are verified and working end-to-end on Supabase Cloud.
 
----
-
-## 7. Phase B1 — Backend Foundation
-
-**Who:** Backend developer  
-**Prerequisite:** B0 AUDIT.md approved  
-**Output:** New `api` Edge Function skeleton, `create_organization` RPC, pgTAP tests
-
-### Key implementation decisions:
-
-#### 7.1 New `api` Edge Function (Hono)
-```
-supabase/functions/api/
-  index.ts          main Hono app
-  routes/
-    me.ts
-    orgs.ts
-    leads.ts
-    campaigns.ts
-    calls.ts
-    agents.ts
-    appointments.ts
-    insights.ts
-    compliance.ts
-    platform.ts
-```
-
-#### 7.2 Membership table name
-Use `organization_members` everywhere (not `memberships`). The `is_org_member()` function already exists.
-
-#### 7.3 CORS fix
-The existing `_shared/cors.ts` uses `*` — replace with:
-```typescript
-const allowedOrigins = Deno.env.get("ALLOWED_ORIGINS")?.split(",") ?? []
-```
-
-#### 7.4 JWT verification
-New `api` function uses caller's JWT (not service role) so RLS applies. This is different from the existing functions which all use `getAdminClient()` (service role).
-
-#### 7.5 New migrations needed (B1)
-- Add `private` schema
-- Add `private.set_updated_at()` function (if not exists — check migration 04)
-- Add `idempotency_keys` table
-- Add `jobs` table
-- Add `audit_logs` table (check if `audit_log` from migration 02 can be extended)
-- Add `notifications` table
-- Add `rate_limits` table
-- Add `api_keys` table (hash + prefix only)
+### 6.1 Sub-Steps & Architecture Setup
+Detailed specifications in `docs/ai_llm_architecture.md`:
+1. **Tier 1 (Realtime Voice Worker in `backend/voice-agent`):**
+   - Implement Python worker with `livekit-agents` and `livekit-plugins-google`.
+   - Configure model: `gemini-2.0-flash-exp` (Gemini Live API) with bidirectional audio streaming.
+   - Configure Silero VAD (220ms end-of-speech silence detection).
+   - Configure instantaneous (<50ms) barge-in / interruption cut-off.
+   - Enforce mandatory automated disclosure line before conversation begins.
+   - Connect HMAC-signed webhooks to Supabase `voice-events` and `voice-tools`.
+   *Checkpoint:* `feat(ai): implement livekit gemini live speech-to-speech voice agent`
+2. **Tier 2 (Post-Call Analysis in `backend/resonology-ai`):**
+   - Implement FastAPI service with `gemini-2.0-flash`.
+   - Enforce structured JSON extraction using `response_schema = ConversationAnalysisSchema`.
+   - Ground all extracted facts, qualification answers, and objections with cited `segmentIds` and literal `quotes`.
+   *Checkpoint:* `feat(ai): implement resonology-ai gemini 2.0 flash structured analysis service`
+3. **Tier 1.5 (Cloud Fallback in Supabase Edge Functions):**
+   - Implement `InlineGeminiProvider` directly in `supabase/functions/analysis-run/`.
+   - Enables serverless analysis execution directly within Supabase Cloud using `GEMINI_API_KEY`.
+   *Checkpoint:* `feat(ai): implement inline gemini fallback in analysis-run edge function`
+4. **End-to-End Verification:**
+   - Run browser web demo call from the Agent Test Console (`/agents/:id`).
+   - Verify speech latency <500ms, transcript streaming, and automatic post-call analysis generation.
+   *Checkpoint:* `feat(ai): verify end-to-end low-latency voice call and structured intelligence` $\rightarrow$ `git push origin phase_2_dev`
 
 ---
 
-## 8. Phase B2–B8 — Domain-by-Domain Backend
+## 7. Final Hardening & Merge to Main
 
-Follow the phases in `backend_update.md §10`. Key implementation notes for each:
-
-### B2 Leads
-- `leads` table already exists — write a migration to add missing columns (compliance snapshot, DND fields, consent fields, `deleted_at`)
-- Import job: use the `jobs` table + `job-runner` function
-- Trigram index for search: `pg_trgm` extension (check if enabled — add if not)
-
-### B3 Agents
-- `agents` table exists — add `agent_versions` table (immutable once published)
-- `test-session` endpoint mints a LiveKit token — requires `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` secrets
-
-### B4 Campaigns + Compliance
-- `campaigns` table exists — add missing columns (rules, criteria, schedule, budget cap)
-- `dialer-tick`: rewrite `trigger-scheduled-calls` as `dialer-tick` with `claim_dialable_leads` RPC
-- For demos: `scripted_replay` mode — no real phone calls needed
-
-### B5 Calls (voice pipeline)
-- `calls` table exists — add `lead_mode`, `channel`, `analysis_status`, `compliance_snapshot` columns
-- Rewrite `handle-call-webhook` as `voice-events` with HMAC auth and deduplication
-- Add `transcript_segments` table (may merge with existing `transcript_turns`)
-- Enable Supabase Realtime on new tables
-
-### B6 Intelligence (AI)
-- `decisions` and `evidence_signals` tables exist — add missing columns, add `conversation_analyses` table
-- Rewrite `process-ai-decision` as `analysis-run` with `AnalysisProvider` interface
-- Built-in `InlineGeminiProvider` using Gemini text model — enables AI pipeline before the Resonology AI service exists
-- Policy engine: pure TypeScript functions in `_shared/policy/`
-
-### B7 Scheduling
-- `appointments` and `follow_ups` tables exist — add exclusion constraint for double-booking, add `availability_rules` table
-- Internal `CalendarProvider` (no external calendar integration yet)
-
-### B8 Analytics
-- SQL functions for dashboard aggregations, insights, cost rollup
-
----
-
-## 9. Phase B5 Parallel — Python Voice Worker
-
-**Who:** Voice/AI developer  
-**Prerequisite:** B5 complete (calls infrastructure ready)  
-**Location:** `backend/voice-agent/`
-
-### Stack:
-- Python 3.11+, `uv` for package management
-- `livekit-agents` SDK
-- Gemini Live API (`google-generativeai`)
-- Pydantic models generated from Zod contracts (`scripts/export-json-schema.ts`)
-
-### Key implementation:
-1. Agent joins LiveKit room, speaks mandatory disclosure line first
-2. Sends events to `voice-events` function (HMAC signed)
-3. Calls tools via `voice-tools` function
-4. `scripted_replay` mode: replay scenario JSON files (S1–S14) for demos/CI
-
----
-
-## 10. Phase B6 Parallel — Resonology AI Service
-
-**Who:** AI developer (Shubham)  
-**Location:** `backend/resonology-ai/`
-
-### API:
-```
-POST /v1/analyze    — transcript → ConversationAnalysis
-GET  /healthz
-GET  /v1/version
-```
-
-### Input: transcript segments + agent context + campaign criteria
-### Output: `ConversationAnalysisSchema` (from Zod contracts, exported as JSON Schema)
-
-### Key constraints:
-- Use Gemini **text** model (not Live API) — structured JSON output
-- Every derived value must have `evidence` (segment IDs + quote)
-- Return typed failure if schema validation fails — never partially apply
-- Prompt injection: delimit transcript text in prompt, mark as untrusted
-
----
-
-## 11. Phase F4 — Retire Legacy Frontend
-
-After F3 is complete and all domains switched to the real API:
-1. Confirm every row in `MIGRATION_MAP.md` is resolved
-2. `git rm -r frontend/legacy-src`
-3. Remove unused dependencies
-4. Update `frontend/README.md` with mock mode and API mode instructions
-
----
-
-## 12. Phase F5 — Switch to Real Data, Domain by Domain
-
-As each backend phase completes, switch that domain:
-```bash
-# In frontend/.env.local:
-VITE_DATA_SOURCE=mock
-VITE_API_DOMAINS=leads,agents   # these two use the real API, rest stay on mock
-```
-
-Switch order follows backend phase order: auth → leads → agents → campaigns → calls → review → appointments → dashboard
-
----
-
-## 13. Implementation Gates (never skip)
-
-| Gate | Before | Check |
-|---|---|---|
-| B0 AUDIT.md written | Any new migration | Show AUDIT.md to the team |
-| F0 MIGRATION_MAP.md written | Deleting or moving legacy code | Show MIGRATION_MAP.md |
-| Schema reconciliation | Any new B1+ migration | New migration doesn't drop existing columns |
-| Mock layer complete | Any screen work in F2/F3 | Every screen works in mock mode |
-| Playwright smoke passes | Any PR | `npm run test:e2e` green in mock mode |
-| Swap-readiness checklist | F5 starts | All items in `FRONTEND_SPEC.md §10` ticked |
-| Security advisor clean | Before demo | Supabase dashboard Security Advisor green |
-
----
-
-## 14. File Ownership Quick Reference
-
-| Path | Who owns it | Changes via |
-|---|---|---|
-| `frontend/src/contracts/` | Frontend + Backend both | PR that changes both the Zod schema and the DB migration |
-| `supabase/migrations/` | Backend | New forward-only migration files only |
-| `supabase/functions/` | Backend | `supabase functions deploy` |
-| `frontend/src/api/mock/` | Frontend | Seeded from `scripts/scenarios/` |
-| `frontend/src/features/` | Frontend | Never imports Supabase, fetch, or mock directly |
-| `backend/resonology-ai/` | AI developer | JSON Schema imported from `scripts/export-json-schema.ts` |
-| `backend/voice-agent/` | Voice developer | Scenario files from `scripts/scenarios/` |
-| `docs/frontend/DECISIONS.md` | Whoever makes the call | Append only, newest first |
-| `docs/backend/AUDIT.md` | Backend | Created in B0, updated as discoveries happen |
-
----
-
-## 15. Tech Debt in the Existing Code to Fix Before F5
-
-| Item | Where | Fix |
-|---|---|---|
-| `_shared/cors.ts` uses `"*"` | `supabase/functions/_shared/cors.ts` | Restrict to `ALLOWED_ORIGINS` env var |
-| All functions use `getAdminClient()` (service role) | All existing Edge Functions | New `api` function uses caller JWT; only system functions use service role |
-| Existing hooks call Supabase directly | `frontend/src/hooks/`, `frontend/src/services/` | Move to `src/api/http/` in F5 |
-| `AuthContext` calls Supabase directly | `frontend/src/contexts/AuthContext.tsx` | Refactor to `SupabaseAuth` adapter |
-| `organization_members` vs plan's `memberships` name | All plan docs mentioning `memberships` | Use `organization_members` everywhere in code; plan docs corrected |
-| No TypeScript strict config | `frontend/tsconfig.json` | Enable `strict: true` in new `src/` (keep lenient for `legacy-src/`) |
+- [ ] All Playwright acceptance tests passing in mock mode and API mode.
+- [ ] TypeScript strict check passes across frontend and Edge Functions with 0 errors.
+- [ ] Supabase Cloud Security Advisor reviewed and clean (0 RLS or permission warnings).
+- [ ] Code review completed.
+- [ ] Merge `phase_2_dev` into `main` via PR.

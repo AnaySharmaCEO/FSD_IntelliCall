@@ -1,13 +1,23 @@
 # 01: Design System and App Shell
 
-## 1. Visual direction
+## 1. Visual direction & Design Translation Policy
 
 Mature B2B SaaS that people use daily. References for *structure only*: Linear (density, status, keyboard), Attio (relational records, saved views), Gong (conversation as evidence). Not a generic AI demo.
 
-- **Accent:** one restrained blue. Everything else neutral.
+- **Accent:** one restrained blue (`--color-action-primary: #2B4C8C`). Everything else neutral.
 - **No** purple gradients, glows, sparkles, robot imagery, or decorative AI textures. The only "AI" visual is a small neutral `AI` badge beside AI-derived values.
 - Flat surfaces, 1 px borders, soft shadows only on floating layers (menus, drawers, modals).
 - Data density: comfortable by default, compact toggle for tables.
+
+### 1.1 Strict Translation & Extension Rule (Binding)
+> [!IMPORTANT]
+> **All newly introduced screens, panels, modals, drawers, tabs, and components from the Next Phase specification MUST be translated into our existing design specification and color schema (`frontend/src/index.css`).**
+> - **Never introduce unaligned or disjointed styles**: Do not copy foreign styling, arbitrary external color palettes, or mismatched font stacks.
+> - **Translate first**: Every element described in the spec (e.g. cards, headers, tables, buttons, chips) must use our existing UI component primitives (`Button`, `Badge`, `Drawer`, `Modal`, `Tabs`, `FilterBar`, `Sidebar`, `Topbar`) and our established design tokens.
+> - **Extend when needed**: If a new feature requires a visual treatment, state, or color not currently defined in our app (e.g., a "proposed" dashed border, a specific confidence tier tint, or an audio waveform timeline indicator):
+>   1. Do **NOT** hardcode ad-hoc inline styles or divergent classes.
+>   2. **Extend our existing design system**: add new semantic CSS custom variables into `frontend/src/index.css` under `:root` and `[data-theme="dark"]` following our existing naming conventions (`--color-*`, `--shadow-*`, `--radius-*`).
+>   3. **Extend our existing UI components**: add props/variants to existing components (e.g. `variant="proposed"` on `Badge`, `size="compact"` on `Button`) rather than building redundant duplicate components.
 
 ## 2. Tokens (`styles/tokens.css`, light and dark via CSS variables)
 
