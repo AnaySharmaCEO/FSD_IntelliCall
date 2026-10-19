@@ -163,7 +163,7 @@
   2. Verified `frontend/src` has zero external dependencies on legacy code.
   3. Cleaned `frontend/tsconfig.json` paths and build targets.
   4. Verified `npm run build` in `frontend/` succeeds with 0 errors (2267 modules transformed in 1.59s).
-* **Commit Reference:** Pending Checkpoint Push F4
+* **Commit Reference:** `3ceac1c` (`chore(frontend): archive legacy-src to archive/legacy-src outside frontend tree`)
 
 
 
