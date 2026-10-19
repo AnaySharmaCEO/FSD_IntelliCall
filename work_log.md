@@ -150,7 +150,7 @@
      - Added `/auth` and `/onboarding` public/onboarding routes to `App.tsx`.
   5. **Build Verification:**
      - Verified `npm run build` completed with 0 errors (2267 modules transformed in 1.51s).
-* **Commit Reference:** Pending Checkpoint Push F3
+* **Commit Reference:** `b13366d` (`feat(frontend): port auth, onboarding, and workspace settings`)
 
 
 
