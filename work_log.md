@@ -292,6 +292,31 @@
      - Verified production build via `npm run build` — 0 errors, 2,269 modules transformed in 1.69s.
 * **Commit Reference:** `298799e` (`fix(frontend): fix auth redirection, profile popup, and mock telemetry binding`)
 
+---
+
+### [2026-10-20 23:05:00 +05:30] — App V2 Cross-Layer Debugging Architecture & Root Cause Reports
+* **Author:** Anay Sharma
+* **Phase:** Debugging & Root Cause Analysis
+* **Branch:** `phase_2_dev`
+* **Summary of Work Done:**
+  1. **Established Debugging Knowledge Base (`docs/Debugging/App_V2_Debugging/`):**
+     - Structured domain-specific analysis documents: `frontend_debug.md`, `database_debug.md`, `backend_debug.md`, and `voiceAI_debug.md`.
+  2. **Frontend Debugging & Empty State Architecture (`frontend_debug.md`):**
+     - Diagnosed cause of premature positive delta indicators on Dashboard KPI cards when metric values are 0.
+     - Isolated synthetic mock data fallbacks on the Analytics page (`|| 120` in funnel steps and `12 + idx * 6` in rolling daily trend arrays).
+     - Formulated a 3-tier standard empty state design system spanning Page Level, KPI Card Level, and Chart/Table Level for all 9 application views.
+  3. **Database & Schema Discrepancy Analysis (`database_debug.md`):**
+     - Uncovered missing PostgreSQL ACL table permissions on Phase 2 tables (`compliance_rules`, `phone_numbers`, `call_analyses`) causing PostgREST `403 Forbidden` before RLS evaluation.
+     - Detailed column and enum mismatches for `leads` (`first_name`/`last_name` vs `name`, `'pending'` vs `lead_status`) and `appointments` (`title`, `host_name`, `duration_minutes`, `lead_id` nullable).
+     - Outlined proposed SQL migration `20261021000001_phase_2_schema_and_grant_fixes.sql`.
+  4. **Backend & Tenant Interceptor Architecture (`backend_debug.md`):**
+     - Analyzed serverless Edge Functions error handling (`analysis-run` with empty transcripts and missing secrets).
+     - Designed Central Tenant Interceptor inside `SupabaseApiClient` to resolve and inject `organization_id` automatically across all API mutations.
+  5. **Voice AI & Acoustic Telemetry Audit (`voiceAI_debug.md`):**
+     - Documented acoustic waveform idle standby handling for `LiveCallMonitorPage.tsx`.
+     - Specified measurement formula for Time-To-First-Byte (TTFB) and WebRTC roundtrip times.
+
+
 
 
 
