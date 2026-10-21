@@ -45,12 +45,17 @@ export interface AnalyticsOverview {
   sentimentBreakdown: { positive: number; neutral: number; negative: number; mixed: number };
   funnelMetrics: { connected: number; engaged: number; converted: number; dropped: number };
   telemetry: {
-    ttfbMs: number;
-    roundtripMs: number;
-    disconnectRatePercent: number;
-    avgSentimentScorePercent: number;
+    ttfbMs: number | null;
+    roundtripMs: number | null;
+    disconnectRatePercent: number | null;
+    avgSentimentScorePercent: number | null;
   };
-  recentTrends: Array<{ date: string; calls: number; conversions: number; avgSentimentScore: number }>;
+  recentTrends: Array<{
+  date: string;
+  calls: number;
+  conversions: number | null;
+  avgSentimentScore: number | null;
+}>;
 }
 
 export interface ApiClient {

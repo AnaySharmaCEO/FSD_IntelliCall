@@ -80,8 +80,12 @@ export const ReviewQueuePage: React.FC = () => {
               <Skeleton height={60} />
             </div>
           ) : flaggedCalls.length === 0 ? (
-            <div className="py-12 text-center text-xs text-[var(--color-text-muted)]">
-              All decisions verified. Queue is clear!
+            <div className="py-12 text-center space-y-2">
+              <CheckCircle2 size={32} className="mx-auto text-[var(--color-success)]" />
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Queue is clear</h3>
+              <p className="text-xs text-[var(--color-text-secondary)] max-w-xs mx-auto">
+                All decisions verified. No flagged items require attention.
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -199,6 +203,14 @@ export const ReviewQueuePage: React.FC = () => {
                   Full Audit Detail <ArrowRight size={13} />
                 </Link>
               </div>
+            </div>
+          ) : flaggedCalls.length === 0 ? (
+            <div className="p-12 text-center rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-2">
+              <CheckCircle2 size={36} className="mx-auto text-[var(--color-success)] opacity-80" />
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Queue is clear</h3>
+              <p className="text-xs text-[var(--color-text-secondary)] max-w-sm mx-auto">
+                No calls require manual verification or supervisor intervention.
+              </p>
             </div>
           ) : (
             <div className="p-12 text-center rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">

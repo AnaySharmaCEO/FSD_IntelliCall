@@ -14,14 +14,17 @@ import { formatDuration } from '../../lib/format';
 
 export const AnalyticsPage: React.FC = () => {
   const { data: analytics, isLoading } = useAnalyticsOverview();
+  const totalCalls = analytics?.totalCalls ?? 0;
+  const hasTelemetry = totalCalls > 0;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
+          <span className={`w-2 h-2 rounded-full ${hasTelemetry ? 'bg-[var(--color-success)]' : 'bg-amber-500'}`} />
           <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-            Operational Telemetry
+            {hasTelemetry ? 'Operational Telemetry Active' : 'Telemetry standby'}
           </span>
         </div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
@@ -45,31 +48,27 @@ export const AnalyticsPage: React.FC = () => {
           <>
             <KPICard
               label="Turnaround Latency (TTFB)"
-              value={`${analytics?.telemetry?.ttfbMs ?? 280} ms`}
-              delta={{ value: -14.0, period: 'last week' }}
+              value={analytics?.telemetry?.ttfbMs != null ? `${analytics.telemetry.ttfbMs} ms` : '—'}
               icon={<Zap size={18} className="text-amber-500" />}
-              hint="Target <500ms achieved"
+              hint={analytics?.telemetry?.ttfbMs != null ? 'Target <500ms achieved' : 'Telemetry standby'}
             />
             <KPICard
               label="Audio Roundtrip"
-              value={`${analytics?.telemetry?.roundtripMs ?? 410} ms`}
-              delta={{ value: -9.5, period: 'yesterday' }}
+              value={analytics?.telemetry?.roundtripMs != null ? `${analytics.telemetry.roundtripMs} ms` : '—'}
               icon={<Activity size={18} className="text-sky-500" />}
-              hint="Resonology Voice Engine stream"
+              hint={analytics?.telemetry?.roundtripMs != null ? 'Resonology Voice Engine stream' : 'Telemetry standby'}
             />
             <KPICard
               label="Call Disconnect Rate"
-              value={`${analytics?.telemetry?.disconnectRatePercent ?? 3.2}%`}
-              delta={{ value: -1.1, period: 'last month' }}
+              value={analytics?.telemetry?.disconnectRatePercent != null ? `${analytics.telemetry.disconnectRatePercent}%` : '—'}
               icon={<TrendingUp size={18} className="text-emerald-500" />}
-              hint="Industry benchmark 8%"
+              hint={analytics?.telemetry?.disconnectRatePercent != null ? 'Dropped calls / Total calls' : 'Awaiting call stream'}
             />
             <KPICard
               label="Average Sentiment Score"
-              value={`${analytics?.telemetry?.avgSentimentScorePercent ?? 88}%`}
-              delta={{ value: 5.2, period: 'last week' }}
+              value={analytics?.telemetry?.avgSentimentScorePercent != null ? `${analytics.telemetry.avgSentimentScorePercent}%` : '—'}
               icon={<ShieldCheck size={18} className="text-indigo-500" />}
-              hint="High satisfaction"
+              hint={analytics?.telemetry?.avgSentimentScorePercent != null ? 'Processed conversation score' : 'No calls scored'}
             />
           </>
         )}
@@ -83,18 +82,21 @@ export const AnalyticsPage: React.FC = () => {
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
               End-to-End Pipeline Funnel
             </h2>
-            <Badge variant="success">
-              {analytics?.funnelMetrics.connected
+            <Badge variant={hasTelemetry && (analytics?.funnelMetrics.connected || 0) > 0 ? 'success' : 'neutral'}>
+              {hasTelemetry && (analytics?.funnelMetrics.connected || 0) > 0
                 ? `${Math.round(
-                    ((analytics.funnelMetrics.converted || 0) / (analytics.funnelMetrics.connected || 1)) * 100
+                    ((analytics?.funnelMetrics.converted || 0) / (analytics?.funnelMetrics.connected || 1)) * 100
                   )}% Conversion Rate`
-                : '100% Pipeline'}
+                : 'Telemetry standby'}
             </Badge>
           </div>
 
           <FunnelChart
             steps={[
-              { label: 'Outbound Leads Dialed', count: (analytics?.funnelMetrics.connected || 0) + (analytics?.funnelMetrics.dropped || 0) || 120 },
+              {
+                label: 'Outbound Leads Dialed',
+                count: (analytics?.funnelMetrics.connected || 0) + (analytics?.funnelMetrics.dropped || 0),
+              },
               { label: 'Live Connection Established', count: analytics?.funnelMetrics.connected || 0 },
               { label: 'Engaged Turns (>30s)', count: analytics?.funnelMetrics.engaged || 0 },
               { label: 'Qualified / Converted', count: analytics?.funnelMetrics.converted || 0 },
@@ -128,9 +130,11 @@ export const AnalyticsPage: React.FC = () => {
                       {row.date}
                     </td>
                     <td className="py-2.5 text-[var(--color-text-secondary)]">{row.calls}</td>
-                    <td className="py-2.5 text-[var(--color-success)] font-bold">{row.conversions}</td>
+                    <td className="py-2.5 text-[var(--color-success)] font-bold">
+                      {row.conversions != null ? row.conversions : '—'}
+                    </td>
                     <td className="py-2.5 text-right font-bold text-[var(--color-action-primary)]">
-                      {row.avgSentimentScore}%
+                      {row.avgSentimentScore != null ? `${row.avgSentimentScore}%` : '—'}
                     </td>
                   </tr>
                 ))}

@@ -32,7 +32,12 @@ const ACTION_LABELS: Record<ActionType, string> = {
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, organization, onboardingProgress, refreshOrgState } = useAuth();
+  const { user, organization, refresh } = useAuth();
+
+  const onboardingProgress =
+    (organization?.onboardingProgress as Record<string, any>) ||
+    (organization as any)?.onboarding_progress ||
+    {};
 
   // Determine current step based on persistent backend onboarding_progress
   const deriveStep = (prog: Record<string, any>, orgExists: boolean): OnboardingStep => {
@@ -50,7 +55,11 @@ export default function OnboardingPage() {
   // Sync step if organization state updates
   useEffect(() => {
     if (organization) {
-      const derived = deriveStep(organization.onboarding_progress || {}, true);
+      const prog =
+        (organization.onboardingProgress as Record<string, any>) ||
+        (organization as any).onboarding_progress ||
+        {};
+      const derived = deriveStep(prog, true);
       setStep(derived);
     }
   }, [organization]);
@@ -112,8 +121,12 @@ export default function OnboardingPage() {
   // Persist progress helper
   const updateProgress = async (stepKey: string, status: "done" | "skipped") => {
     if (!organization) return;
+    const currentProg =
+      (organization.onboardingProgress as Record<string, any>) ||
+      (organization as any).onboarding_progress ||
+      {};
     const nextProgress = {
-      ...(organization.onboarding_progress || {}),
+      ...currentProg,
       [stepKey]: status,
     };
 
@@ -123,7 +136,7 @@ export default function OnboardingPage() {
         .update({ onboarding_progress: nextProgress })
         .eq("id", organization.id);
 
-      await refreshOrgState();
+      await refresh();
     } catch (err) {
       console.error("Failed to update onboarding progress:", err);
     }
@@ -149,38 +162,73 @@ export default function OnboardingPage() {
     try {
       const slug = workspaceName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-      // 1. Create Organization (gated by RLS: created_by = auth.uid())
-      const { data: newOrg, error: orgErr } = await supabase
-        .from("organizations")
-        .insert({
-          name: workspaceName.trim(),
-          slug: `${slug}-${Math.random().toString(36).substring(2, 6)}`,
-          created_by: user.id,
-          onboarding_completed: false,
-          onboarding_progress: { workspace: "done" },
-        })
-        .select("id, name, slug, onboarding_completed, onboarding_progress")
-        .single();
+      // Check if user already has an active workspace/organization membership to avoid duplicate creation on retry
+      let orgId = organization?.id;
+      if (!orgId) {
+        const { data: existingMember } = await supabase
+          .from("organization_members")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle();
 
-      if (orgErr || !newOrg) {
-        throw new Error(orgErr?.message || "Failed to create organization.");
+        if (existingMember?.organization_id) {
+          orgId = existingMember.organization_id;
+        }
       }
 
-      // 2. Create Owner Membership (gated by strict first-member owner policy)
-      const { error: memErr } = await supabase
-        .from("organization_members")
-        .insert({
-          organization_id: newOrg.id,
-          user_id: user.id,
-          role: "owner",
-          status: "active",
-        });
+      if (orgId) {
+        // Organization already exists (e.g. created before a retry or page reload)
+        const currentProg =
+          (organization?.onboardingProgress as Record<string, any>) ||
+          (organization as any)?.onboarding_progress ||
+          {};
+        const { error: updateErr } = await supabase
+          .from("organizations")
+          .update({
+            name: workspaceName.trim(),
+            onboarding_progress: { ...currentProg, workspace: "done" },
+          })
+          .eq("id", orgId);
 
-      if (memErr) {
-        throw new Error(memErr.message || "Failed to establish workspace ownership.");
+        if (updateErr) {
+          throw new Error(updateErr.message || "Failed to update workspace.");
+        }
+      } else {
+        // 1. Create Organization (gated by RLS: created_by = auth.uid())
+        const { data: newOrg, error: orgErr } = await supabase
+          .from("organizations")
+          .insert({
+            name: workspaceName.trim(),
+            slug: `${slug}-${Math.random().toString(36).substring(2, 6)}`,
+            created_by: user.id,
+            onboarding_completed: false,
+            onboarding_progress: { workspace: "done" },
+          })
+          .select("id, name, slug, onboarding_completed, onboarding_progress")
+          .single();
+
+        if (orgErr || !newOrg) {
+          throw new Error(orgErr?.message || "Failed to create organization.");
+        }
+
+        // 2. Create Owner Membership (gated by strict first-member owner policy)
+        const { error: memErr } = await supabase
+          .from("organization_members")
+          .insert({
+            organization_id: newOrg.id,
+            user_id: user.id,
+            role: "owner",
+            status: "active",
+          });
+
+        if (memErr) {
+          throw new Error(memErr.message || "Failed to establish workspace ownership.");
+        }
       }
 
-      await refreshOrgState();
+      await refresh();
       toast("Workspace initialized successfully.");
       setStep("leads_import");
     } catch (err: any) {
@@ -348,7 +396,7 @@ export default function OnboardingPage() {
         throw completeErr;
       }
 
-      await refreshOrgState();
+      await refresh();
       toast("Welcome to IntelliCall! Your dashboard is ready.");
       navigate("/dashboard");
     } catch (err: any) {

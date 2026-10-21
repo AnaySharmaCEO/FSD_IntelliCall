@@ -145,7 +145,7 @@ export const CampaignsPage: React.FC = () => {
       ) : campaigns.length === 0 ? (
         <EmptyState
           icon={<Megaphone size={36} />}
-          title="No campaigns active"
+          title="No campaigns created"
           description="Create your first campaign to begin automated calling to leads in your CRM."
           action={{
             label: 'Create Campaign',

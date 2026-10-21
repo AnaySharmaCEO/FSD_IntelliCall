@@ -114,7 +114,7 @@ export const CompliancePage: React.FC = () => {
         ) : rules.length === 0 ? (
           <EmptyState
             icon={<ShieldCheck size={32} />}
-            title="No compliance rules established"
+            title="No compliance audit rules active"
             description="Establish disclosure checklists and prohibited phrase filters to audit every call turn."
             action={{
               label: 'Add Compliance Rule',

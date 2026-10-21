@@ -18,6 +18,24 @@ import type {
 } from '../../contracts/entities';
 import { supabase } from '../../lib/supabase';
 
+function mapAppointmentRecord(row: any): Appointment {
+  const meta = (typeof row.metadata === 'object' && row.metadata !== null) ? row.metadata : {};
+  return {
+    id: row.id,
+    orgId: row.organization_id || row.orgId,
+    leadId: row.lead_id || row.leadId,
+    callId: row.call_id || row.callId || null,
+    title: meta.title || row.notes || 'Callback Appointment',
+    scheduledFor: row.scheduled_for || row.scheduledFor || '',
+    durationMinutes: Number(meta.duration_minutes || meta.durationMinutes) || 30,
+    status: (row.status === 'scheduled' || row.status === 'confirmed') ? 'confirmed' : (row.status || 'proposed'),
+    hostName: meta.host_name || meta.hostName || 'Sales Representative',
+    source: row.booking_source || meta.source || 'Dashboard Manual',
+    meetingUrl: meta.meeting_url || meta.meetingUrl,
+    createdAt: row.created_at || row.createdAt || '',
+  };
+}
+
 export class SupabaseApiClient implements ApiClient {
   async listCalls(params?: CallFilterParams): Promise<PaginatedResult<Call>> {
     let query = supabase.from('calls').select('*', { count: 'exact' });
@@ -121,8 +139,52 @@ export class SupabaseApiClient implements ApiClient {
     return (data as Campaign) || null;
   }
 
+  private async resolveActiveOrganizationId(): Promise<string> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      throw new Error('Authentication required: please sign in to complete this action.');
+    }
+
+    const { data: member, error } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to resolve active organization: ${error.message}`);
+    }
+    if (!member?.organization_id) {
+      throw new Error('No active organization workspace found. Please complete workspace setup.');
+    }
+    return member.organization_id;
+  }
+
   async createCampaign(campaign: Partial<Campaign>): Promise<Campaign> {
-    const { data, error } = await supabase.from('campaigns').insert(campaign).select().single();
+    const orgId = await this.resolveActiveOrganizationId();
+
+    const payload: Record<string, any> = {
+      organization_id: orgId,
+      name: campaign.name,
+      status: campaign.status || 'draft',
+      daily_budget: (campaign as any).daily_budget ?? 5000,
+      concurrency_limit: (campaign as any).concurrency_limit ?? 5,
+      calling_hours_start: (campaign as any).calling_hours_start ?? '09:00',
+      calling_hours_end: (campaign as any).calling_hours_end ?? '18:00',
+    };
+    if (campaign.agent_id || (campaign as any).agentId) {
+      payload.agent_id = campaign.agent_id || (campaign as any).agentId;
+    }
+    if ((campaign as any).strategy) {
+      payload.strategy = (campaign as any).strategy;
+    }
+    if ((campaign as any).confidence_threshold !== undefined) {
+      payload.confidence_threshold = (campaign as any).confidence_threshold;
+    }
+
+    const { data, error } = await supabase.from('campaigns').insert(payload).select().single();
     if (error) throw error;
     return data as Campaign;
   }
@@ -143,7 +205,7 @@ export class SupabaseApiClient implements ApiClient {
       query = query.eq('status', params.status);
     }
     if (params?.search) {
-      query = query.or(`first_name.ilike.%${params.search}%,last_name.ilike.%${params.search}%,phone.ilike.%${params.search}%`);
+      query = query.or(`name.ilike.%${params.search}%,phone.ilike.%${params.search}%,email.ilike.%${params.search}%`);
     }
 
     const page = params?.page || 1;
@@ -171,7 +233,43 @@ export class SupabaseApiClient implements ApiClient {
   }
 
   async createLead(lead: Partial<Lead>): Promise<Lead> {
-    const { data, error } = await supabase.from('leads').insert(lead).select().single();
+    const orgId = await this.resolveActiveOrganizationId();
+
+    const fullName =
+      (lead as any).name ||
+      `${(lead as any).first_name || (lead as any).firstName || ''} ${(lead as any).last_name || (lead as any).lastName || ''}`.trim() ||
+      'New Lead';
+
+    const VALID_LEAD_STATUSES = new Set([
+      'new',
+      'contacted',
+      'qualified',
+      'not_qualified',
+      'meeting_booked',
+      'meeting_attended',
+      'opportunity',
+      'converted',
+      'stalled',
+    ]);
+    const rawStatus = (lead as any).status;
+    const status = (rawStatus && VALID_LEAD_STATUSES.has(rawStatus)) ? rawStatus : 'new';
+
+    const payload: Record<string, unknown> = {
+      organization_id: orgId,
+      name: fullName,
+      phone: lead.phone || '',
+      email: lead.email || '',
+      status,
+      company: (lead as any).company || '',
+      title: (lead as any).title || '',
+    };
+    if ((lead as any).campaign_id || (lead as any).campaignId) {
+      payload.campaign_id = (lead as any).campaign_id || (lead as any).campaignId;
+    }
+    if ((lead as any).notes) payload.notes = (lead as any).notes;
+    if ((lead as any).source) payload.source = (lead as any).source;
+
+    const { data, error } = await supabase.from('leads').insert(payload).select().single();
     if (error) throw error;
     return data as Lead;
   }
@@ -189,8 +287,27 @@ export class SupabaseApiClient implements ApiClient {
   }
 
   async createComplianceRule(rule: Partial<ComplianceRule>): Promise<ComplianceRule> {
-    const { data, error } = await supabase.from('compliance_rules').insert(rule).select().single();
-    if (error) throw error;
+    const orgId = await this.resolveActiveOrganizationId();
+
+    const payload: Record<string, any> = {
+      organization_id: orgId,
+      name: rule.name,
+      rule_type: rule.rule_type,
+      description: rule.description || '',
+      threshold: rule.threshold ?? 0.85,
+      action_on_violation: rule.action_on_violation || 'flag',
+      is_active: rule.is_active ?? true,
+    };
+
+    const { data, error } = await supabase.from('compliance_rules').insert(payload).select().single();
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error(
+          'Permission denied: Your account role does not have administrative rights to manage compliance rules, or table grants require database configuration.'
+        );
+      }
+      throw error;
+    }
     return data as ComplianceRule;
   }
 
@@ -212,8 +329,28 @@ export class SupabaseApiClient implements ApiClient {
   }
 
   async getAnalyticsOverview(): Promise<AnalyticsOverview> {
-    const { data: calls } = await supabase.from('calls').select('id, duration_seconds, sentiment, status, created_at, started_at');
-    const { count: leadConversions } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'converted');
+    const { data: calls, error: callsError } = await supabase
+      .from('calls')
+      .select('id, duration_seconds, sentiment, status, created_at, started_at');
+    if (callsError) {
+      throw new Error(`Failed to load calls for analytics: ${callsError.message}`);
+    }
+
+    const { count: leadConversions, error: convError } = await supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'converted');
+    if (convError) {
+      throw new Error(`Failed to load lead conversions: ${convError.message}`);
+    }
+
+    const { data: outcomeRecords, error: outcomesError } = await supabase
+      .from('outcomes')
+      .select('id, stage, converted_at, created_at')
+      .eq('stage', 'converted');
+    if (outcomesError) {
+      throw new Error(`Failed to load conversion outcomes: ${outcomesError.message}`);
+    }
 
     const callList = (calls || []) as Array<{
       id: string;
@@ -232,19 +369,22 @@ export class SupabaseApiClient implements ApiClient {
     const negativeCount = callList.filter((c) => c.sentiment === 'negative').length;
     const mixedCount = callList.filter((c) => c.sentiment === 'mixed').length;
 
-    // Disconnect rate: calls dropped or status failed / totalCalls
+    // Disconnect rate: calls dropped or status failed / totalCalls (null if no calls)
     const droppedCalls = callList.filter(
       (c) => c.status === 'failed' || (c.duration_seconds !== undefined && c.duration_seconds < 10 && c.status === 'completed')
     ).length;
-    const disconnectRatePercent = totalCalls > 0 ? Number(((droppedCalls / totalCalls) * 100).toFixed(1)) : 3.2;
+    const disconnectRatePercent = totalCalls > 0 ? Number(((droppedCalls / totalCalls) * 100).toFixed(1)) : null;
 
-    // Average sentiment score out of 100
+    // Average sentiment score out of 100 (null if no scored calls)
     const scoredCalls = positiveCount + neutralCount + negativeCount + mixedCount;
     const avgSentimentScorePercent = scoredCalls > 0
       ? Math.round(((positiveCount * 100 + neutralCount * 65 + mixedCount * 45 + negativeCount * 15) / (scoredCalls * 100)) * 100)
-      : (totalCalls > 0 ? 85 : 88);
+      : null;
 
-    // Dynamic 5-day rolling window
+    const totalConversions = leadConversions ?? 0;
+    const timestampedOutcomes = (outcomeRecords || []).filter((o) => Boolean(o.converted_at));
+
+    // Dynamic 5-day rolling window with genuine database numbers (no synthetic fallbacks)
     const recentTrends = Array.from({ length: 5 }).map((_, idx) => {
       const d = new Date();
       d.setDate(d.getDate() - (4 - idx));
@@ -252,11 +392,27 @@ export class SupabaseApiClient implements ApiClient {
       const dayCalls = callList.filter((c) => (c.started_at || c.created_at || '').slice(0, 10) === dateStr);
       const dayTotal = dayCalls.length;
       const dayPos = dayCalls.filter((c) => c.sentiment === 'positive').length;
-      const daySentiment = dayTotal > 0 ? Math.round((dayPos / dayTotal) * 100) : 78 + idx * 3;
+      const dayScored = dayCalls.filter((c) => c.sentiment && ['positive', 'neutral', 'negative', 'mixed'].includes(c.sentiment)).length;
+      const daySentiment = dayScored > 0 ? Math.round((dayPos / dayScored) * 100) : null;
+
+      // Determine daily conversions:
+      // 1. If timestamped outcomes exist, count those converted on this day.
+      // 2. If total conversions is 0, daily conversions is genuinely 0.
+      // 3. If leads are marked 'converted' but the leads schema lacks a converted_at timestamp column,
+      //    daily breakdown cannot be accurately determined without inventing events; represent as null.
+      let dayConversions: number | null = 0;
+      if (timestampedOutcomes.length > 0) {
+        dayConversions = timestampedOutcomes.filter(
+          (o) => o.converted_at?.slice(0, 10) === dateStr
+        ).length;
+      } else if (totalConversions > 0) {
+        dayConversions = null;
+      }
+
       return {
         date: dateStr,
-        calls: dayTotal > 0 ? dayTotal : 12 + idx * 6,
-        conversions: dayTotal > 0 ? Math.round(dayTotal * 0.25) : 3 + idx * 2,
+        calls: dayTotal,
+        conversions: dayConversions,
         avgSentimentScore: daySentiment,
       };
     });
@@ -278,8 +434,8 @@ export class SupabaseApiClient implements ApiClient {
         dropped: droppedCalls,
       },
       telemetry: {
-        ttfbMs: 280,
-        roundtripMs: 410,
+        ttfbMs: null, // Genuine TTFB telemetry is not captured by database schema; represented as unavailable
+        roundtripMs: null, // Genuine audio roundtrip latency is not captured by database schema; represented as unavailable
         disconnectRatePercent,
         avgSentimentScorePercent,
       },
@@ -291,29 +447,122 @@ export class SupabaseApiClient implements ApiClient {
   async listAppointments(status?: string): Promise<Appointment[]> {
     let query = supabase.from('appointments').select('*').order('scheduled_for', { ascending: true });
     if (status) {
-      query = query.eq('status', status);
+      const dbStatus = status === 'confirmed' ? 'scheduled' : status;
+      query = query.eq('status', dbStatus);
     }
     const { data, error } = await query;
     if (error) throw error;
-    return (data || []) as Appointment[];
+    return (data || []).map(mapAppointmentRecord);
   }
 
   async getAppointment(id: string): Promise<Appointment | null> {
     const { data, error } = await supabase.from('appointments').select('*').eq('id', id).maybeSingle();
     if (error) throw error;
-    return (data as Appointment) || null;
+    return data ? mapAppointmentRecord(data) : null;
   }
 
-  async createAppointment(appointment: Partial<Appointment>): Promise<Appointment> {
-    const { data, error } = await supabase.from('appointments').insert(appointment).select().single();
+  async createAppointment(appointment: any): Promise<Appointment> {
+    const orgId = await this.resolveActiveOrganizationId();
+
+    const leadId = appointment.leadId || appointment.lead_id;
+    if (!leadId) {
+      throw new Error('A valid lead must be selected to schedule an appointment.');
+    }
+
+    const scheduledFor = appointment.scheduledFor || appointment.scheduled_for;
+    if (!scheduledFor) {
+      throw new Error('Scheduled date and time is required.');
+    }
+
+    let dbStatus = appointment.status || 'scheduled';
+    if (dbStatus === 'confirmed' || dbStatus === 'proposed') {
+      dbStatus = 'scheduled';
+    }
+
+    const title = appointment.title || 'Callback Appointment';
+    const hostName = appointment.hostName || 'Sales Representative';
+    const durationMinutes = Number(appointment.durationMinutes) || 30;
+
+    const VALID_BOOKING_SOURCES = new Set(['calendly', 'manual', 'ai_booked']);
+    const rawSource = appointment.booking_source || appointment.source;
+    const bookingSource = (rawSource && VALID_BOOKING_SOURCES.has(rawSource)) ? rawSource : 'manual';
+
+    const payload = {
+      organization_id: orgId,
+      lead_id: leadId,
+      call_id: appointment.callId || appointment.call_id || null,
+      scheduled_for: scheduledFor,
+      status: dbStatus,
+      booking_source: bookingSource,
+      notes: title,
+      metadata: {
+        title,
+        host_name: hostName,
+        duration_minutes: durationMinutes,
+      },
+    };
+
+    const { data, error } = await supabase.from('appointments').insert(payload).select().single();
     if (error) throw error;
-    return data as Appointment;
+    return mapAppointmentRecord(data);
   }
 
-  async updateAppointment(id: string, updates: Partial<Appointment>): Promise<Appointment> {
-    const { data, error } = await supabase.from('appointments').update(updates).eq('id', id).select().single();
+  async updateAppointment(id: string, updates: any): Promise<Appointment> {
+    // 1. Fetch current appointment to preserve existing metadata and unrelated properties
+    const { data: current, error: fetchErr } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (fetchErr) throw fetchErr;
+
+    const dbUpdates: Record<string, any> = {};
+    if (updates.scheduledFor || updates.scheduled_for) {
+      dbUpdates.scheduled_for = updates.scheduledFor || updates.scheduled_for;
+    }
+    if (updates.status !== undefined) {
+      dbUpdates.status = (updates.status === 'confirmed' || updates.status === 'proposed') ? 'scheduled' : updates.status;
+    }
+    if (updates.leadId || updates.lead_id) {
+      dbUpdates.lead_id = updates.leadId || updates.lead_id;
+    }
+    if (updates.notes !== undefined) {
+      dbUpdates.notes = updates.notes;
+    } else if (updates.title !== undefined) {
+      dbUpdates.notes = updates.title;
+    }
+
+    // 2. Preserve existing metadata without setting undefined
+    const existingMeta =
+      typeof current.metadata === 'object' && current.metadata !== null
+        ? { ...current.metadata }
+        : {};
+    let metadataChanged = false;
+
+    if (updates.title !== undefined) {
+      existingMeta.title = updates.title;
+      metadataChanged = true;
+    }
+    if (updates.hostName !== undefined || updates.host_name !== undefined) {
+      existingMeta.host_name = updates.hostName ?? updates.host_name;
+      metadataChanged = true;
+    }
+    if (updates.durationMinutes !== undefined || updates.duration_minutes !== undefined) {
+      existingMeta.duration_minutes = Number(updates.durationMinutes ?? updates.duration_minutes);
+      metadataChanged = true;
+    }
+    if (updates.metadata && typeof updates.metadata === 'object') {
+      Object.assign(existingMeta, updates.metadata);
+      metadataChanged = true;
+    }
+
+    if (metadataChanged) {
+      dbUpdates.metadata = existingMeta;
+    }
+
+    const { data, error } = await supabase.from('appointments').update(dbUpdates).eq('id', id).select().single();
     if (error) throw error;
-    return data as Appointment;
+    return mapAppointmentRecord(data);
   }
 
   async deleteAppointment(id: string): Promise<void> {
@@ -323,16 +572,73 @@ export class SupabaseApiClient implements ApiClient {
 
   // --- LEADS BULK IMPORT ---
   async createLeadsBulk(leads: Partial<Lead>[]): Promise<{ count: number; leads: Lead[] }> {
-    const { data, error } = await supabase.from('leads').insert(leads).select();
+    const orgId = await this.resolveActiveOrganizationId();
+    if (!orgId) {
+      throw new Error('Active organization workspace required for bulk lead import.');
+    }
+
+    const VALID_LEAD_STATUSES = new Set([
+      'new',
+      'contacted',
+      'qualified',
+      'not_qualified',
+      'meeting_booked',
+      'meeting_attended',
+      'opportunity',
+      'converted',
+      'stalled',
+    ]);
+
+    // Explicit allowlisted payload - avoids sending unsupported frontend properties to Supabase
+    const normalizedLeads = leads.map((l: any) => {
+      const name =
+        l.name ||
+        [l.first_name || l.firstName, l.last_name || l.lastName].filter(Boolean).join(' ') ||
+        'Unknown Lead';
+
+      const rawStatus = l.status;
+      const status = (rawStatus && VALID_LEAD_STATUSES.has(rawStatus)) ? rawStatus : 'new';
+
+      const row: Record<string, any> = {
+        organization_id:orgId,
+        name,
+        company: l.company || '',
+        title: l.title || '',
+        email: l.email || '',
+        phone: l.phone || '',
+        status,
+      };
+
+      if (l.campaign_id || l.campaignId) {
+        row.campaign_id = l.campaign_id || l.campaignId;
+      }
+      if (l.source) {
+        row.source = l.source;
+      }
+      if (l.notes) {
+        row.notes = l.notes;
+      }
+
+      return row;
+    });
+
+    const { data, error } = await supabase.from('leads').insert(normalizedLeads).select();
     if (error) throw error;
     return { count: data?.length || 0, leads: (data || []) as Lead[] };
   }
 
   // --- ORGANIZATION & TEAM MEMBERS ---
   async getOrganization(): Promise<Organization | null> {
-    const { data, error } = await supabase.from('organizations').select('*').limit(1).maybeSingle();
-    if (error) throw error;
-    return (data as Organization) || null;
+    try {
+      const orgId = await this.resolveActiveOrganizationId();
+      if (!orgId) return null;
+      const { data, error } = await supabase.from('organizations').select('*').eq('id', orgId).maybeSingle();
+      if (error) throw error;
+      return (data as Organization) || null;
+    } catch {
+      // Return null when unauthenticated or workspace membership is not active. Never select arbitrary org.
+      return null;
+    }
   }
 
   async updateOrganization(updates: Partial<Organization>): Promise<Organization> {

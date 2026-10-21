@@ -91,4 +91,18 @@ export class MockAuthAdapter implements AuthAdapter {
   async refresh(): Promise<void> {
     this.notify();
   }
+
+  async requestPasswordReset(email: string): Promise<{ error: Error | null }> {
+    if (!email || !email.trim().includes('@')) {
+      return { error: new Error('Please enter a valid email address.') };
+    }
+    return { error: null };
+  }
+
+  async updatePassword(password: string): Promise<{ error: Error | null }> {
+    if (!password || password.length < 8) {
+      return { error: new Error('Password must be at least 8 characters long.') };
+    }
+    return { error: null };
+  }
 }

@@ -542,7 +542,7 @@ export default function OnboardingPage() {
               <Select
                 label="Voice persona"
                 value={agentVoice}
-                onChange={setAgentVoice}
+                onChange={e => setAgentVoice(e.target.value)}
                 options={["Alloy", "Echo", "Nova", "Shimmer"].map(v => ({ value: v, label: v }))}
               />
             </div>
@@ -633,14 +633,14 @@ export default function OnboardingPage() {
                 <Select
                   label="Assigned Agent"
                   value={createdAgentId || existingAgents[0]?.id || ""}
-                  onChange={setCreatedAgentId}
+                  onChange={e => setCreatedAgentId(e.target.value)}
                   options={existingAgents.map(a => ({ value: a.id, label: a.name }))}
                 />
 
                 <Select
                   label="Strategy playbook"
                   value={campaignStrategy}
-                  onChange={setCampaignStrategy}
+                  onChange={e => setCampaignStrategy(e.target.value)}
                   options={[
                     { value: "direct_qualification", label: "Direct qualification — qualify on first call" },
                     { value: "discovery_first", label: "Discovery-first — understand need before qualifying" },

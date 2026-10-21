@@ -14,6 +14,7 @@ import EmptyState from "../components/ui/EmptyState";
 import EvidenceThread from "../components/shared/EvidenceThread";
 import OutcomeCard from "../components/shared/OutcomeCard";
 import CallWithAIDrawer from "../components/shared/CallWithAIDrawer";
+import { mockDecisions } from "../mock";
 import type { Decision, Call, LeadStatus } from "../types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

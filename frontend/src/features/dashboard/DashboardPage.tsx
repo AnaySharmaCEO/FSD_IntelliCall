@@ -105,23 +105,26 @@ export const DashboardPage: React.FC = () => {
             <KPICard
               label="Total Calls Completed"
               value={analytics?.totalCalls ?? 0}
-              delta={{ value: 12.4, period: 'last week' }}
               icon={<PhoneCall size={18} />}
-              hint="Inbound & Outbound"
+              hint={(analytics?.totalCalls ?? 0) > 0 ? 'Inbound & Outbound volume' : 'Awaiting first call'}
             />
             <KPICard
               label="Avg Conversation Length"
               value={formatDuration(analytics?.avgDurationSeconds ?? 0)}
-              delta={{ value: 4.2, period: 'yesterday' }}
               icon={<Clock size={18} />}
-              hint="Target: 3m 30s"
+              hint={(analytics?.totalCalls ?? 0) > 0 ? 'Target: 3m 30s' : 'No baseline comparison'}
             />
             <KPICard
               label="Lead Conversions"
               value={analytics?.funnelMetrics.converted ?? 0}
-              delta={{ value: 18.0, period: 'last 7 days' }}
               icon={<CheckCircle2 size={18} />}
-              hint="High intent qualified"
+              hint={
+                (analytics?.funnelMetrics.converted ?? 0) > 0
+                  ? 'High intent qualified'
+                  : (analytics?.totalCalls ?? 0) > 0
+                    ? 'No conversions recorded'
+                    : 'Awaiting first call'
+              }
             />
             <KPICard
               label="Compliance Pass Rate"
@@ -133,7 +136,6 @@ export const DashboardPage: React.FC = () => {
                     )}%`
                   : 'Setup Required'
               }
-              delta={complianceRules.length > 0 ? { value: 0.8, period: 'last month' } : undefined}
               icon={<ShieldCheck size={18} />}
               hint={
                 complianceRules.length > 0
@@ -178,8 +180,12 @@ export const DashboardPage: React.FC = () => {
                 ))}
               </div>
             ) : liveCalls.length === 0 ? (
-              <div className="text-center py-10 text-xs text-[var(--color-text-muted)]">
-                No recent calls recorded yet.
+              <div className="text-center py-12 p-6 rounded-[var(--radius-md)] bg-[var(--color-bg-sunken)]/40 border border-dashed border-[var(--color-border-subtle)] space-y-2">
+                <Sparkles size={28} className="mx-auto text-[var(--color-action-primary)] opacity-80" />
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Your Intelligence Engine is Ready</h3>
+                <p className="text-xs text-[var(--color-text-secondary)] max-w-sm mx-auto">
+                  Live streaming call activity, sentiment analysis, and transcriptions will appear here once calls commence.
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-[var(--color-border-subtle)]">
@@ -311,17 +317,21 @@ export const DashboardPage: React.FC = () => {
                 <Skeleton width="100%" height={24} />
                 <Skeleton width="100%" height={24} />
               </div>
+            ) : (leadsData?.data || []).length === 0 ? (
+              <div className="text-center py-8 text-xs text-[var(--color-text-muted)]">
+                No leads in pipeline yet.
+              </div>
             ) : (
               <div className="divide-y divide-[var(--color-border-subtle)] text-xs">
-                {(leadsData?.data || []).map((lead) => (
+                {(leadsData?.data || []).map((lead: any) => (
                   <div key={lead.id} className="py-2.5 flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-[var(--color-text-primary)]">
-                        {lead.first_name} {lead.last_name || ''}
+                        {lead.name || [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Prospect'}
                       </p>
-                      <p className="text-[11px] font-mono text-[var(--color-text-muted)]">{lead.phone}</p>
+                      <p className="text-[11px] font-mono text-[var(--color-text-muted)]">{lead.phone || 'No phone'}</p>
                     </div>
-                    <StatusChip status={lead.status} type="lead" />
+                    <StatusChip status={lead.status || 'new'} type="lead" />
                   </div>
                 ))}
               </div>

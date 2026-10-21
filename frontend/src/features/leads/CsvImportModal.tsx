@@ -112,12 +112,13 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ open, onClose, o
     setIsProcessing(true);
     try {
       const payload: Partial<Lead>[] = validLeads.map((l) => ({
+        name: [l.firstName, l.lastName].filter(Boolean).join(' ') || 'Prospect',
         first_name: l.firstName,
         last_name: l.lastName || undefined,
         phone: l.phone,
         email: l.email || undefined,
         campaign_id: selectedCampaignId || undefined,
-        status: 'pending',
+        status: 'new' as any,
       }));
 
       await createBulk.mutateAsync(payload);

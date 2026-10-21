@@ -203,7 +203,7 @@ export const AgentsPage: React.FC = () => {
       ) : agents.length === 0 ? (
         <EmptyState
           icon={<Bot size={36} />}
-          title="No AI agents configured"
+          title="No voice personas configured"
           description="Create your first conversational agent with customized voice and qualification prompts."
           action={{
             label: 'Create Agent',
