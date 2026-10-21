@@ -61,7 +61,7 @@ export const AppointmentsPage: React.FC = () => {
         scheduledFor: parsedDate.toISOString(),
         durationMinutes: Number(durationMinutes),
         status: 'confirmed',
-        source: 'Dashboard Manual',
+        source: 'manual',
         leadId: selectedLeadId,
       } as any);
       toast('Appointment scheduled successfully', 'success');

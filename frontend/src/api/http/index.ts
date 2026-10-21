@@ -479,43 +479,45 @@ export class SupabaseApiClient implements ApiClient {
       dbStatus = 'scheduled';
     }
 
-    const title = appointment.title || 'Callback Appointment';
-    const hostName = appointment.hostName || 'Sales Representative';
-    const durationMinutes = Number(appointment.durationMinutes) || 30;
-
     const VALID_BOOKING_SOURCES = new Set(['calendly', 'manual', 'ai_booked']);
     const rawSource = appointment.booking_source || appointment.source;
     const bookingSource = (rawSource && VALID_BOOKING_SOURCES.has(rawSource)) ? rawSource : 'manual';
 
-    const payload = {
+    // Only schema-supported columns of the 'appointments' table
+    const payload: Record<string, any> = {
       organization_id: orgId,
       lead_id: leadId,
-      call_id: appointment.callId || appointment.call_id || null,
       scheduled_for: scheduledFor,
       status: dbStatus,
       booking_source: bookingSource,
-      notes: title,
-      metadata: {
-        title,
-        host_name: hostName,
-        duration_minutes: durationMinutes,
-      },
     };
+    if (appointment.callId || appointment.call_id) {
+      payload.call_id = appointment.callId || appointment.call_id;
+    }
+    if (appointment.decisionId || appointment.decision_id) {
+      payload.decision_id = appointment.decisionId || appointment.decision_id;
+    }
+    if (appointment.externalEventId || appointment.external_event_id) {
+      payload.external_event_id = appointment.externalEventId || appointment.external_event_id;
+    }
 
     const { data, error } = await supabase.from('appointments').insert(payload).select().single();
-    if (error) throw error;
-    return mapAppointmentRecord(data);
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied: Your account role does not have permission to schedule appointments.');
+      }
+      throw new Error(`Failed to schedule appointment: ${error.message}`);
+    }
+    const record = mapAppointmentRecord(data);
+    return {
+      ...record,
+      title: appointment.title || record.title,
+      hostName: appointment.hostName || record.hostName,
+      durationMinutes: appointment.durationMinutes ? Number(appointment.durationMinutes) : record.durationMinutes,
+    };
   }
 
   async updateAppointment(id: string, updates: any): Promise<Appointment> {
-    // 1. Fetch current appointment to preserve existing metadata and unrelated properties
-    const { data: current, error: fetchErr } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (fetchErr) throw fetchErr;
-
     const dbUpdates: Record<string, any> = {};
     if (updates.scheduledFor || updates.scheduled_for) {
       dbUpdates.scheduled_for = updates.scheduledFor || updates.scheduled_for;
@@ -526,48 +528,44 @@ export class SupabaseApiClient implements ApiClient {
     if (updates.leadId || updates.lead_id) {
       dbUpdates.lead_id = updates.leadId || updates.lead_id;
     }
-    if (updates.notes !== undefined) {
-      dbUpdates.notes = updates.notes;
-    } else if (updates.title !== undefined) {
-      dbUpdates.notes = updates.title;
+    if (updates.booking_source || updates.source) {
+      const VALID_BOOKING_SOURCES = new Set(['calendly', 'manual', 'ai_booked']);
+      const raw = updates.booking_source || updates.source;
+      if (raw && VALID_BOOKING_SOURCES.has(raw)) {
+        dbUpdates.booking_source = raw;
+      }
     }
-
-    // 2. Preserve existing metadata without setting undefined
-    const existingMeta =
-      typeof current.metadata === 'object' && current.metadata !== null
-        ? { ...current.metadata }
-        : {};
-    let metadataChanged = false;
-
-    if (updates.title !== undefined) {
-      existingMeta.title = updates.title;
-      metadataChanged = true;
+    if (updates.callId || updates.call_id) {
+      dbUpdates.call_id = updates.callId || updates.call_id;
     }
-    if (updates.hostName !== undefined || updates.host_name !== undefined) {
-      existingMeta.host_name = updates.hostName ?? updates.host_name;
-      metadataChanged = true;
-    }
-    if (updates.durationMinutes !== undefined || updates.duration_minutes !== undefined) {
-      existingMeta.duration_minutes = Number(updates.durationMinutes ?? updates.duration_minutes);
-      metadataChanged = true;
-    }
-    if (updates.metadata && typeof updates.metadata === 'object') {
-      Object.assign(existingMeta, updates.metadata);
-      metadataChanged = true;
-    }
-
-    if (metadataChanged) {
-      dbUpdates.metadata = existingMeta;
+    if (updates.externalEventId || updates.external_event_id) {
+      dbUpdates.external_event_id = updates.externalEventId || updates.external_event_id;
     }
 
     const { data, error } = await supabase.from('appointments').update(dbUpdates).eq('id', id).select().single();
-    if (error) throw error;
-    return mapAppointmentRecord(data);
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied: Your account role does not have permission to update appointments.');
+      }
+      throw new Error(`Failed to update appointment: ${error.message}`);
+    }
+    const record = mapAppointmentRecord(data);
+    return {
+      ...record,
+      title: updates.title || record.title,
+      hostName: updates.hostName || record.hostName,
+      durationMinutes: updates.durationMinutes ? Number(updates.durationMinutes) : record.durationMinutes,
+    };
   }
 
   async deleteAppointment(id: string): Promise<void> {
     const { error } = await supabase.from('appointments').delete().eq('id', id);
-    if (error) throw error;
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied: Your account role does not have permission to delete appointments.');
+      }
+      throw new Error(`Failed to delete appointment: ${error.message}`);
+    }
   }
 
   // --- LEADS BULK IMPORT ---
