@@ -54,3 +54,5 @@ supabase/.temp/
 # Supabase Proprietary Backend Core Business Logic (Secret Sauce)
 # Keeps proprietary AI conversation intelligence, decision algorithms, and webhook orchestration private
 supabase/functions/
+
+/supa/
