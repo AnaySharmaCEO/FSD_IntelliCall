@@ -161,7 +161,7 @@ export default function SettingsPage() {
               <select
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                className="w-full h-9 px-3 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)]"
+                className="w-full h-9 px-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/40 focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)] transition-all duration-150 outline-none"
               >
                 <option value="Asia/Kolkata">Asia/Kolkata (IST +05:30) [Default]</option>
                 <option value="UTC">UTC (Universal Coordinated Time)</option>
@@ -177,7 +177,7 @@ export default function SettingsPage() {
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full h-9 px-3 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)]"
+                className="w-full h-9 px-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/40 focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)] transition-all duration-150 outline-none"
               >
                 <option value="INR">INR (₹ - Indian Rupee) [Default]</option>
                 <option value="USD">USD ($ - United States Dollar)</option>
@@ -312,7 +312,7 @@ export default function SettingsPage() {
               <select
                 value={selectedVoice}
                 onChange={(e) => setSelectedVoice(e.target.value)}
-                className="w-full h-9 px-3 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)]"
+                className="w-full h-9 px-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/40 focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)] transition-all duration-150 outline-none"
               >
                 <option value="Aoede">Aoede — Natural, measured English & conversational Hindi (Recommended)</option>
                 <option value="Alloy">Alloy — Professional, crisp tone for banking/enterprise</option>
@@ -366,7 +366,7 @@ export default function SettingsPage() {
                 rows={3}
                 value={disclosureText}
                 onChange={(e) => setDisclosureText(e.target.value)}
-                className="w-full p-3 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)] font-sans"
+                className="w-full p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/40 focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)] font-sans transition-all duration-150 outline-none"
               />
               <span className="text-[11px] text-[var(--color-text-muted)] block mt-1">
                 Compliance law requires identifying the caller as an automated AI agent prior to dialog.
@@ -471,7 +471,7 @@ export default function SettingsPage() {
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
-              className="w-full h-9 px-3 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)]"
+              className="w-full h-9 px-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/40 focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)] transition-all duration-150 outline-none"
             >
               <option value="admin">Admin — Full workspace configuration and user management</option>
               <option value="manager">Manager — Manage campaigns, review queues, and leads</option>

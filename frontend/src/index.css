@@ -9,62 +9,63 @@ body,
   height: 100%;
 }
 
-/* Design tokens: keep the current app spec as the default theme. */
+/* Design tokens: Pace UI AI SaaS design system */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  /* Backgrounds */
-  --color-bg-primary: #F7F8FA;
-  --color-bg-surface: #FFFFFF;
-  --color-bg-elevated: #FFFFFF;
-  --color-bg-sunken: #EEF1F5;
+  /* Backgrounds: near-black, deep charcoal surfaces */
+  --color-bg-primary: #070709;
+  --color-bg-base: #070709;
+  --color-bg-surface: #0d0d11;
+  --color-bg-elevated: #131317;
+  --color-bg-sunken: #18181f;
 
-  /* Text */
-  --color-text-primary: #171B24;
-  --color-text-secondary: #4B5566;
-  --color-text-muted: #8A93A6;
-  --color-text-on-accent: #FFFFFF;
+  /* Text: crisp white and muted zinc */
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+  --color-text-on-accent: #070709;
 
-  /* Borders */
-  --color-border-default: #DEE2E8;
-  --color-border-subtle: #ECEEF2;
+  /* Borders: ultra-refined subtle borders */
+  --color-border-default: rgba(255, 255, 255, 0.12);
+  --color-border-subtle: rgba(255, 255, 255, 0.07);
 
-  /* Actions & Brand */
-  --color-brand-blue: #2B4C8C;
-  --color-brand-blue-hover: #21396B;
-  --color-action-primary: #2B4C8C;
-  --color-action-primary-hover: #21396B;
-  --color-action-primary-solid: #2B4C8C;
-  --color-action-primary-solid-hover: #21396B;
-  --color-action-secondary-bg: #E9EEF7;
-  --color-action-secondary-text: #2B4C8C;
-  --color-action-secondary-border: #D0DBEE;
+  /* Actions & Brand: high-contrast white & subtle accents */
+  --color-brand-blue: #ffffff;
+  --color-brand-blue-hover: #e4e4e7;
+  --color-action-primary: #ffffff;
+  --color-action-primary-hover: #e4e4e7;
+  --color-action-primary-solid: #ffffff;
+  --color-action-primary-solid-hover: #e4e4e7;
+  --color-action-secondary-bg: rgba(255, 255, 255, 0.07);
+  --color-action-secondary-text: #ffffff;
+  --color-action-secondary-border: rgba(255, 255, 255, 0.15);
 
   /* Status colors */
-  --color-success: #1E8E5A;
-  --color-success-bg: #E4F5EC;
-  --color-warning: #B7791F;
-  --color-warning-bg: #FBF0DD;
-  --color-error: #C0392B;
-  --color-error-bg: #FBE7E4;
-  --color-info: #2B4C8C;
-  --color-info-bg: #E9EEF7;
-  --color-pending: #667085;
-  --color-pending-bg: #F2F4F7;
-  --color-proposed: #B54708;
-  --color-proposed-bg: #FFFAEB;
-  --color-proposed-border: #FEDF89;
+  --color-success: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-error: #ef4444;
+  --color-error-bg: rgba(239, 68, 68, 0.12);
+  --color-info: #38bdf8;
+  --color-info-bg: rgba(56, 189, 248, 0.12);
+  --color-pending: #98a2b3;
+  --color-pending-bg: #1d2026;
+  --color-proposed: #f0a64b;
+  --color-proposed-bg: #2a2114;
+  --color-proposed-border: #5e431e;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(23, 27, 36, 0.06);
-  --shadow-md: 0 4px 12px rgba(23, 27, 36, 0.08);
-  --shadow-lg: 0 12px 32px rgba(23, 27, 36, 0.14);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.8);
 
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
+  /* Radius: Pace UI refined curvature */
+  --radius-sm: 8px;
+  --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-pill: 999px;
+  --radius-pill: 9999px;
 
   /* Spacing (4px base) */
   --space-1: 4px;
@@ -79,8 +80,8 @@ body,
   --space-16: 64px;
 
   /* Typography */
-  --font-ui: "IBM Plex Sans", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-data: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ui: "Plus Jakarta Sans", "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-data: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-hindi: "Noto Sans Devanagari", sans-serif;
 
   /* Motion */
@@ -90,30 +91,33 @@ body,
   --easing-standard: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Dark theme retains the previous redesign's Obsidian palette. */
+/* Explicit dark theme */
 :root[data-theme="dark"],
 [data-theme="dark"] {
   color-scheme: dark;
-  --color-bg-primary: #09090b;
-  --color-bg-surface: #0e0e11;
-  --color-bg-elevated: #141418;
-  --color-bg-sunken: #18181b;
+  --color-bg-primary: #070709;
+  --color-bg-base: #070709;
+  --color-bg-surface: #0d0d11;
+  --color-bg-elevated: #131317;
+  --color-bg-sunken: #18181f;
 
-  --color-text-primary: #ffffff;
+  --color-text-primary: #fafafa;
   --color-text-secondary: #a1a1aa;
   --color-text-muted: #71717a;
-  --color-text-on-accent: #09090b;
+  --color-text-on-accent: #070709;
 
   --color-border-default: rgba(255, 255, 255, 0.12);
   --color-border-subtle: rgba(255, 255, 255, 0.07);
 
+  --color-brand-blue: #ffffff;
+  --color-brand-blue-hover: #e4e4e7;
   --color-action-primary: #ffffff;
   --color-action-primary-hover: #e4e4e7;
   --color-action-primary-solid: #ffffff;
   --color-action-primary-solid-hover: #e4e4e7;
-  --color-action-secondary-bg: rgba(255, 255, 255, 0.06);
+  --color-action-secondary-bg: rgba(255, 255, 255, 0.07);
   --color-action-secondary-text: #ffffff;
-  --color-action-secondary-border: rgba(255, 255, 255, 0.16);
+  --color-action-secondary-border: rgba(255, 255, 255, 0.15);
 
   --color-success: #10b981;
   --color-success-bg: rgba(16, 185, 129, 0.12);
@@ -129,64 +133,66 @@ body,
   --color-proposed-bg: #2a2114;
   --color-proposed-border: #5e431e;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.7);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.85);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.8);
 
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-lg: 16px;
   --radius-pill: 9999px;
 }
 
-/* Explicit light theme follows the current app design system. */
+/* Explicit light theme: Clean, high-contrast, modern SaaS */
 [data-theme="light"] {
   color-scheme: light;
-  --color-bg-primary: #F7F8FA;
-  --color-bg-surface: #FFFFFF;
-  --color-bg-elevated: #FFFFFF;
-  --color-bg-sunken: #EEF1F5;
+  --color-bg-primary: #fafafc;
+  --color-bg-base: #fafafc;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-sunken: #f0f2f5;
 
-  --color-text-primary: #171B24;
-  --color-text-secondary: #4B5566;
-  --color-text-muted: #8A93A6;
-  --color-text-on-accent: #FFFFFF;
+  --color-text-primary: #09090b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #a1a1aa;
+  --color-text-on-accent: #ffffff;
 
-  --color-border-default: #DEE2E8;
-  --color-border-subtle: #ECEEF2;
+  --color-border-default: #e4e4e7;
+  --color-border-subtle: #eeeef2;
 
- /* Actions & Brand */
-  --color-brand-blue: #4A6DA0;
-  --color-brand-blue-hover: #5A7EB5;
-  --color-action-primary: #2B4C8C;
-  --color-action-primary-hover: #21396B;
-  --color-action-primary-solid: #2B4C8C;
-  --color-action-primary-solid-hover: #21396B;
-  --color-action-secondary-bg: #E9EEF7;
-  --color-action-secondary-text: #2B4C8C;
-  --color-action-secondary-border: #D0DBEE;
-  --color-success: #1E8E5A;
-  --color-success-bg: #E4F5EC;
-  --color-warning: #B7791F;
-  --color-warning-bg: #FBF0DD;
-  --color-error: #C0392B;
-  --color-error-bg: #FBE7E4;
-  --color-info: #2B4C8C;
-  --color-info-bg: #E9EEF7;
-  --color-pending: #667085;
-  --color-pending-bg: #F2F4F7;
-  --color-proposed: #B54708;
-  --color-proposed-bg: #FFFAEB;
-  --color-proposed-border: #FEDF89;
+  /* Actions & Brand */
+  --color-brand-blue: #09090b;
+  --color-brand-blue-hover: #27272a;
+  --color-action-primary: #09090b;
+  --color-action-primary-hover: #27272a;
+  --color-action-primary-solid: #09090b;
+  --color-action-primary-solid-hover: #27272a;
+  --color-action-secondary-bg: #f4f4f5;
+  --color-action-secondary-text: #09090b;
+  --color-action-secondary-border: #e4e4e7;
 
-  --shadow-sm: 0 1px 2px rgba(23, 27, 36, 0.06);
-  --shadow-md: 0 4px 12px rgba(23, 27, 36, 0.08);
-  --shadow-lg: 0 12px 32px rgba(23, 27, 36, 0.14);
+  --color-success: #059669;
+  --color-success-bg: #ecfdf5;
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-info: #0284c7;
+  --color-info-bg: #f0f9ff;
+  --color-pending: #64748b;
+  --color-pending-bg: #f1f5f9;
+  --color-proposed: #ea580c;
+  --color-proposed-bg: #fff7ed;
+  --color-proposed-border: #fed7aa;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.1);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-pill: 999px;
+  --radius-pill: 9999px;
 }
 
 /* Base resets & styles */
@@ -344,6 +350,15 @@ button {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes ic-waveform {
+  0%, 100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 .animate-ic-pulse {
   animation: ic-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -360,11 +375,21 @@ button {
   animation: ic-slide-up 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.animate-ic-waveform {
+  transform-origin: center;
+  animation: ic-waveform 1.3s ease-in-out infinite;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  .animate-ic-waveform {
+    animation: none !important;
+    transform: scaleY(0.6) !important;
   }
 }

@@ -5,6 +5,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IntelliCall</title>
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('ic-theme');
+          var theme = stored === 'light' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
+    </script>
     <!-- figma:head-end -->
   </head>
   <body>

@@ -12,10 +12,10 @@ export const FilterChip: React.FC<FilterChipProps> = ({ active, onClick, childre
     <button
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-[12px] transition-colors duration-[var(--duration-fast)] border cursor-pointer select-none',
+        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150 border cursor-pointer select-none',
         active
-          ? 'border-[var(--color-action-primary)] text-[var(--color-action-primary)] bg-[var(--color-action-secondary-bg)] font-semibold'
-          : 'border-[var(--color-border-default)] text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)]'
+          ? 'border-[var(--color-action-primary)]/40 text-[var(--color-action-primary)] bg-[var(--color-action-secondary-bg)] font-semibold shadow-2xs'
+          : 'border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-default)]'
       )}
     >
       {children}

@@ -34,9 +34,22 @@ export const DashboardPage: React.FC = () => {
 
   // Initialize and listen to realtime call events
   useEffect(() => {
-    if (callsData?.data) {
-      setLiveCalls(callsData.data);
-    }
+    if (!callsData?.data) return;
+    setLiveCalls((prev) => {
+      if (
+        prev.length === callsData.data.length &&
+        prev.every(
+          (c, i) =>
+            c.id === callsData.data[i]?.id &&
+            c.status === callsData.data[i]?.status &&
+            c.duration_seconds === callsData.data[i]?.duration_seconds &&
+            c.sentiment === callsData.data[i]?.sentiment
+        )
+      ) {
+        return prev;
+      }
+      return callsData.data;
+    });
   }, [callsData]);
 
   useEffect(() => {
@@ -63,7 +76,10 @@ export const DashboardPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
+            <span className="relative flex h-2 w-2 items-center justify-center">
+              <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-success)] opacity-40" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-success)]" />
+            </span>
             <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               System Live &bull; Resonology AI Engine Online
             </span>
@@ -151,7 +167,7 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2 spans): Real-time Call Activity */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4">
+          <div className="p-6 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4 shadow-sm shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-4">
               <div>
                 <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">
@@ -180,7 +196,7 @@ export const DashboardPage: React.FC = () => {
                 ))}
               </div>
             ) : liveCalls.length === 0 ? (
-              <div className="text-center py-12 p-6 rounded-[var(--radius-md)] bg-[var(--color-bg-sunken)]/40 border border-dashed border-[var(--color-border-subtle)] space-y-2">
+              <div className="text-center py-12 p-6 rounded-2xl bg-[var(--color-bg-sunken)]/40 border border-dashed border-[var(--color-border-subtle)] space-y-2">
                 <Sparkles size={28} className="mx-auto text-[var(--color-action-primary)] opacity-80" />
                 <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Your Intelligence Engine is Ready</h3>
                 <p className="text-xs text-[var(--color-text-secondary)] max-w-sm mx-auto">
@@ -193,7 +209,7 @@ export const DashboardPage: React.FC = () => {
                   <Link
                     key={call.id}
                     to={`/calls/${call.id}`}
-                    className="flex items-center justify-between py-3.5 hover:bg-[var(--color-bg-sunken)]/60 px-2 rounded-[var(--radius-sm)] transition-colors group"
+                    className="flex items-center justify-between py-3.5 hover:bg-[var(--color-bg-sunken)]/60 px-2 rounded-xl transition-colors group"
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="w-8 h-8 rounded-full bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0 text-[var(--color-text-secondary)] group-hover:border-[var(--color-action-primary)] group-hover:text-[var(--color-action-primary)] transition-colors">
@@ -227,7 +243,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* Sentiment & Tone Breakdown */}
-          <div className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)]">
+          <div className="p-6 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-sm shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)] mb-1">
               Conversational Sentiment Distribution
             </h2>
@@ -236,25 +252,25 @@ export const DashboardPage: React.FC = () => {
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--color-success-bg)]/30 border border-[var(--color-success)]/20">
+              <div className="p-3.5 rounded-xl bg-[var(--color-success-bg)]/30 border border-[var(--color-success)]/20">
                 <span className="text-[11px] font-medium text-[var(--color-success)] uppercase block">Positive</span>
                 <span className="text-xl font-bold font-mono text-[var(--color-success)]">
                   {analytics?.sentimentBreakdown.positive ?? 0}
                 </span>
               </div>
-              <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--color-info-bg)]/30 border border-[var(--color-info)]/20">
+              <div className="p-3.5 rounded-xl bg-[var(--color-info-bg)]/30 border border-[var(--color-info)]/20">
                 <span className="text-[11px] font-medium text-[var(--color-info)] uppercase block">Neutral</span>
                 <span className="text-xl font-bold font-mono text-[var(--color-info)]">
                   {analytics?.sentimentBreakdown.neutral ?? 0}
                 </span>
               </div>
-              <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--color-warning-bg)]/30 border border-[var(--color-warning)]/20">
+              <div className="p-3.5 rounded-xl bg-[var(--color-warning-bg)]/30 border border-[var(--color-warning)]/20">
                 <span className="text-[11px] font-medium text-[var(--color-warning)] uppercase block">Mixed</span>
                 <span className="text-xl font-bold font-mono text-[var(--color-warning)]">
                   {analytics?.sentimentBreakdown.mixed ?? 0}
                 </span>
               </div>
-              <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--color-error-bg)]/30 border border-[var(--color-error)]/20">
+              <div className="p-3.5 rounded-xl bg-[var(--color-error-bg)]/30 border border-[var(--color-error)]/20">
                 <span className="text-[11px] font-medium text-[var(--color-error)] uppercase block">Negative</span>
                 <span className="text-xl font-bold font-mono text-[var(--color-error)]">
                   {analytics?.sentimentBreakdown.negative ?? 0}
@@ -267,7 +283,7 @@ export const DashboardPage: React.FC = () => {
         {/* Right Column: Conversion Funnel & Priority Leads */}
         <div className="space-y-6">
           {/* Conversion Funnel */}
-          <div className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4">
+          <div className="p-6 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4 shadow-sm shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">
               Lead Conversion Funnel
             </h2>
@@ -280,7 +296,7 @@ export const DashboardPage: React.FC = () => {
                 {
                   label: 'Connected Calls',
                   count: analytics?.funnelMetrics.connected ?? 0,
-                  color: 'bg-[var(--color-brand-blue)]',
+                  color: 'bg-blue-600',
                 },
                 {
                   label: 'Engaged (>30s duration)',
@@ -302,7 +318,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* Qualified Leads Queue */}
-          <div className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4">
+          <div className="p-6 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4 shadow-sm shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">
                 Recent Leads
