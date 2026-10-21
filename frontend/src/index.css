@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -9,8 +9,10 @@ body,
   height: 100%;
 }
 
-/* ── Design tokens (Aligned with existing app spec + extended for Phase 2) ── */
+/* Design tokens: keep the current app spec as the default theme. */
 :root {
+  color-scheme: light;
+
   /* Backgrounds */
   --color-bg-primary: #F7F8FA;
   --color-bg-surface: #FFFFFF;
@@ -38,7 +40,7 @@ body,
   --color-action-secondary-text: #2B4C8C;
   --color-action-secondary-border: #D0DBEE;
 
-  /* Status Colors */
+  /* Status colors */
   --color-success: #1E8E5A;
   --color-success-bg: #E4F5EC;
   --color-warning: #B7791F;
@@ -49,16 +51,14 @@ body,
   --color-info-bg: #E9EEF7;
   --color-pending: #667085;
   --color-pending-bg: #F2F4F7;
-
-  /* Proposed State (Phase 2 extension) */
   --color-proposed: #B54708;
   --color-proposed-bg: #FFFAEB;
   --color-proposed-border: #FEDF89;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(23,27,36,0.06);
-  --shadow-md: 0 4px 12px rgba(23,27,36,0.08);
-  --shadow-lg: 0 12px 32px rgba(23,27,36,0.14);
+  --shadow-sm: 0 1px 2px rgba(23, 27, 36, 0.06);
+  --shadow-md: 0 4px 12px rgba(23, 27, 36, 0.08);
+  --shadow-lg: 0 12px 32px rgba(23, 27, 36, 0.14);
 
   /* Radius */
   --radius-sm: 6px;
@@ -79,64 +79,120 @@ body,
   --space-16: 64px;
 
   /* Typography */
-  --font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-data: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ui: "IBM Plex Sans", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-data: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-hindi: "Noto Sans Devanagari", sans-serif;
 
   /* Motion */
-  --duration-fast: 120ms;
-  --duration-base: 180ms;
-  --duration-slow: 280ms;
-  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 350ms;
+  --easing-standard: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Dark theme retains the previous redesign's Obsidian palette. */
+:root[data-theme="dark"],
 [data-theme="dark"] {
-  --color-bg-primary: #18181B;
-  --color-bg-surface: #1D1D21;
-  --color-bg-elevated: #232327;
-  --color-bg-sunken: #131315;
+  color-scheme: dark;
+  --color-bg-primary: #09090b;
+  --color-bg-surface: #0e0e11;
+  --color-bg-elevated: #141418;
+  --color-bg-sunken: #18181b;
 
-  --color-text-primary: #E4E4E6;
-  --color-text-secondary: #9C9CA3;
-  --color-text-muted: #6B6B72;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+  --color-text-on-accent: #09090b;
+
+  --color-border-default: rgba(255, 255, 255, 0.12);
+  --color-border-subtle: rgba(255, 255, 255, 0.07);
+
+  --color-action-primary: #ffffff;
+  --color-action-primary-hover: #e4e4e7;
+  --color-action-primary-solid: #ffffff;
+  --color-action-primary-solid-hover: #e4e4e7;
+  --color-action-secondary-bg: rgba(255, 255, 255, 0.06);
+  --color-action-secondary-text: #ffffff;
+  --color-action-secondary-border: rgba(255, 255, 255, 0.16);
+
+  --color-success: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-error: #ef4444;
+  --color-error-bg: rgba(239, 68, 68, 0.12);
+  --color-info: #38bdf8;
+  --color-info-bg: rgba(56, 189, 248, 0.12);
+  --color-pending: #98a2b3;
+  --color-pending-bg: #1d2026;
+  --color-proposed: #f0a64b;
+  --color-proposed-bg: #2a2114;
+  --color-proposed-border: #5e431e;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.85);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 9999px;
+}
+
+/* Explicit light theme follows the current app design system. */
+[data-theme="light"] {
+  color-scheme: light;
+  --color-bg-primary: #F7F8FA;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-elevated: #FFFFFF;
+  --color-bg-sunken: #EEF1F5;
+
+  --color-text-primary: #171B24;
+  --color-text-secondary: #4B5566;
+  --color-text-muted: #8A93A6;
   --color-text-on-accent: #FFFFFF;
 
-  --color-border-default: #2E2E33;
-  --color-border-subtle: #242427;
+  --color-border-default: #DEE2E8;
+  --color-border-subtle: #ECEEF2;
 
-  /* Actions & Brand */
+ /* Actions & Brand */
   --color-brand-blue: #4A6DA0;
   --color-brand-blue-hover: #5A7EB5;
-  --color-action-primary: #7C93BD;
-  --color-action-primary-hover: #91A6CA;
-  --color-action-primary-solid: #4A6DA0;
-  --color-action-primary-solid-hover: #3D588A;
-  --color-action-secondary-bg: #24262B;
-  --color-action-secondary-text: #93A6C8;
-  --color-action-secondary-border: #3A4354;
+  --color-action-primary: #2B4C8C;
+  --color-action-primary-hover: #21396B;
+  --color-action-primary-solid: #2B4C8C;
+  --color-action-primary-solid-hover: #21396B;
+  --color-action-secondary-bg: #E9EEF7;
+  --color-action-secondary-text: #2B4C8C;
+  --color-action-secondary-border: #D0DBEE;
+  --color-success: #1E8E5A;
+  --color-success-bg: #E4F5EC;
+  --color-warning: #B7791F;
+  --color-warning-bg: #FBF0DD;
+  --color-error: #C0392B;
+  --color-error-bg: #FBE7E4;
+  --color-info: #2B4C8C;
+  --color-info-bg: #E9EEF7;
+  --color-pending: #667085;
+  --color-pending-bg: #F2F4F7;
+  --color-proposed: #B54708;
+  --color-proposed-bg: #FFFAEB;
+  --color-proposed-border: #FEDF89;
 
-  --color-success: #7FA98D;
-  --color-success-bg: #1D2420;
-  --color-warning: #BE9C68;
-  --color-warning-bg: #26211A;
-  --color-error: #BE8074;
-  --color-error-bg: #271E1C;
-  --color-info: #7C93BD;
-  --color-info-bg: #21242B;
-  --color-pending: #98A2B3;
-  --color-pending-bg: #1D2026;
+  --shadow-sm: 0 1px 2px rgba(23, 27, 36, 0.06);
+  --shadow-md: 0 4px 12px rgba(23, 27, 36, 0.08);
+  --shadow-lg: 0 12px 32px rgba(23, 27, 36, 0.14);
 
-  --color-proposed: #F0A64B;
-  --color-proposed-bg: #2A2114;
-  --color-proposed-border: #5E431E;
-
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
 }
 
-/* ── Base reset ── */
-*, *::before, *::after {
+/* Base resets & styles */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -144,10 +200,21 @@ body {
   margin: 0;
   font-family: var(--font-ui);
   font-size: 14px;
-  line-height: 20px;
-  background: var(--color-bg-primary);
+  line-height: 1.5;
+  background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: 1.25;
 }
 
 a {
@@ -160,29 +227,110 @@ button {
   cursor: pointer;
 }
 
-/* ── Scrollbars ── */
+/* PaceUI visual utilities retained from the previous redesign. */
+.pace-grid-bg {
+  background-image:
+    linear-gradient(to right, var(--color-border-default) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-border-default) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 60% 70% at 50% 0%, #000 35%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 50% 0%, #000 35%, transparent 100%);
+}
+
+.pace-card {
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pace-card:hover {
+  border-color: var(--color-action-primary);
+}
+
+.pace-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border-default);
+  background-color: var(--color-bg-sunken);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.pace-btn-primary {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background-color: var(--color-action-primary-solid) !important;
+  color: var(--color-text-on-accent) !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 10px 20px !important;
+  border-radius: var(--radius-sm) !important;
+  transition: all 0.15s ease !important;
+  box-shadow: var(--shadow-sm) !important;
+  text-decoration: none !important;
+  border: none !important;
+}
+
+.pace-btn-primary:hover {
+  background-color: var(--color-action-primary-solid-hover) !important;
+  color: var(--color-text-on-accent) !important;
+  transform: translateY(-1px);
+}
+
+.pace-btn-secondary {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background-color: var(--color-action-secondary-bg) !important;
+  border: 1px solid var(--color-border-default) !important;
+  color: var(--color-action-secondary-text) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  padding: 10px 20px !important;
+  border-radius: var(--radius-sm) !important;
+  transition: all 0.15s ease !important;
+  text-decoration: none !important;
+}
+
+.pace-btn-secondary:hover {
+  border-color: var(--color-text-secondary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* Scrollbars */
 * {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
 }
+
 *:hover {
   scrollbar-color: var(--color-border-default) transparent;
 }
 
-/* ── Focus ring ── */
+/* Focus ring */
 :focus-visible {
   outline: 2px solid var(--color-action-primary);
   outline-offset: 2px;
 }
 
-/* ── Animations ── */
+/* Animations */
 @keyframes ic-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 @keyframes ic-shimmer {
-  0%, 100% { opacity: 1; }
+  0%,
+  100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
 
@@ -212,9 +360,10 @@ button {
   animation: ic-slide-up 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }

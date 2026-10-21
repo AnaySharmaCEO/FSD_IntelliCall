@@ -136,8 +136,8 @@ export const CallsPage: React.FC = () => {
         ) : calls.length === 0 ? (
           <EmptyState
             icon={<PhoneCall size={32} />}
-            title="No matching calls found"
-            description="Try modifying search keywords or clearing active filters to see more results."
+            title="No call records found"
+            description="No call logs match your current filter criteria or pipeline activity."
             action={{
               label: 'Reset Filters',
               onClick: () => {

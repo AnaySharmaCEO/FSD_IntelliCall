@@ -122,11 +122,15 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
   useEffect(() => {
     if (paramMode && paramMode !== mode) {
       setMode(paramMode);
+      setLoading(false);
+      setError(null);
+      setSuccessNotice(null);
     }
   }, [paramMode]);
 
   const switchMode = (newMode: AuthMode) => {
     setMode(newMode);
+    setLoading(false);
     setError(null);
     setSuccessNotice(null);
     setSearchParams({ mode: newMode });
@@ -164,20 +168,25 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
     }
 
     setLoading(true);
-    const { error: signInErr } = await signIn(email, password);
-    setLoading(false);
+    try {
+      const { error: signInErr } = await signIn(email, password);
 
-    if (signInErr) {
-      setError(signInErr.message);
-      return;
-    }
+      if (signInErr) {
+        setError(signInErr.message);
+        return;
+      }
 
-    toast("Signed in successfully.", "success");
-    const from = (location.state as any)?.from?.pathname;
-    if (from && from !== "/signin" && from !== "/signup" && from !== "/auth" && from !== "/login") {
-      navigate(from, { replace: true });
-    } else {
-      navigate("/dashboard", { replace: true });
+      toast("Signed in successfully.", "success");
+      const from = (location.state as any)?.from?.pathname;
+      if (from && from !== "/signin" && from !== "/signup" && from !== "/auth" && from !== "/login") {
+        navigate(from, { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    } catch (err: any) {
+      setError(err?.message || "An unexpected error occurred during sign in.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -213,27 +222,30 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
     }
 
     setLoading(true);
-    const { error: signUpErr, session: newSession } = await signUp(trimmedEmail, password, name);
+    try {
+      const { error: signUpErr, session: newSession } = (await signUp(trimmedEmail, password, name)) as any;
 
-    if (signUpErr) {
-      setLoading(false);
-      setError(signUpErr.message);
-      return;
-    }
-
-    // If session was not immediately returned, sign in directly with password
-    if (!newSession) {
-      const { error: signInErr } = await signIn(trimmedEmail, password);
-      if (signInErr) {
-        setLoading(false);
-        setError(signInErr.message);
+      if (signUpErr) {
+        setError(signUpErr.message);
         return;
       }
-    }
 
-    setLoading(false);
-    toast("Account created successfully. Let's set up your workspace.");
-    navigate("/onboarding");
+      // If session was not immediately returned, sign in directly with password
+      if (!newSession && !user) {
+        const { error: signInErr } = await signIn(trimmedEmail, password);
+        if (signInErr) {
+          setError(signInErr.message);
+          return;
+        }
+      }
+
+      toast("Account created successfully. Let's set up your workspace.");
+      navigate("/onboarding");
+    } catch (err: any) {
+      setError(err?.message || "An unexpected error occurred during sign up.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ==========================================================================
@@ -251,15 +263,20 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
     }
 
     setLoading(true);
-    const { error: resetErr } = await requestPasswordReset(trimmedEmail);
-    setLoading(false);
+    try {
+      const { error: resetErr } = await requestPasswordReset(trimmedEmail);
 
-    if (resetErr) {
-      setError("Unable to process password reset. Please verify the email and try again.");
-      return;
+      if (resetErr) {
+        setError(resetErr.message || "Unable to process password reset. Please verify the email and try again.");
+        return;
+      }
+
+      setSuccessNotice("Password reset instructions have been sent to " + trimmedEmail);
+    } catch (err: any) {
+      setError(err?.message || "Unable to process password reset. Please verify the email and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setSuccessNotice("Password reset instructions have been sent to " + trimmedEmail);
   };
 
   // ==========================================================================
@@ -285,16 +302,21 @@ export default function AuthPage({ initialMode: propMode }: AuthPageProps = {}) 
     }
 
     setLoading(true);
-    const { error: updateErr } = await updatePassword(newPassword);
-    setLoading(false);
+    try {
+      const { error: updateErr } = await updatePassword(newPassword);
 
-    if (updateErr) {
-      setError(updateErr.message || "Failed to update password. The reset link may be expired.");
-      return;
+      if (updateErr) {
+        setError(updateErr.message || "Failed to update password. The reset link may be expired.");
+        return;
+      }
+
+      toast("Password updated successfully. Please sign in with your new password.");
+      switchMode("signin");
+    } catch (err: any) {
+      setError(err?.message || "Failed to update password. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    toast("Password updated successfully. Please sign in with your new password.");
-    switchMode("signin");
   };
 
   return (

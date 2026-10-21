@@ -10,6 +10,9 @@ interface AuthContextValue extends AuthState {
   signUp: AuthAdapter['signUp'];
   signOut: AuthAdapter['signOut'];
   refresh: AuthAdapter['refresh'];
+  refreshOrgState: AuthAdapter['refresh'];
+  requestPasswordReset: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
   isAuthenticated: boolean;
   role: Role | null;
   onboardingCompleted: boolean;
@@ -40,6 +43,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signUp: (email, pass, name) => authAdapter.signUp(email, pass, name),
       signOut: () => authAdapter.signOut(),
       refresh: () => authAdapter.refresh(),
+      refreshOrgState: () => authAdapter.refresh(),
+      requestPasswordReset: (email) =>
+        authAdapter.requestPasswordReset
+          ? authAdapter.requestPasswordReset(email)
+          : Promise.resolve({
+              error: new Error('Password reset is not supported by the current authentication provider.'),
+            }),
+      updatePassword: (pass) =>
+        authAdapter.updatePassword
+          ? authAdapter.updatePassword(pass)
+          : Promise.resolve({
+              error: new Error('Password update is not supported by the current authentication provider.'),
+            }),
       isAuthenticated: Boolean(state.user && state.token),
       role,
       onboardingCompleted,

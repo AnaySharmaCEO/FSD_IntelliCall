@@ -57,13 +57,12 @@ export const LeadsPage: React.FC = () => {
       return;
     }
 
-    const headers = ['First Name', 'Last Name', 'Phone', 'Email', 'Status', 'Created At'];
-    const rows = leads.map((l) => [
-      `"${l.first_name || ''}"`,
-      `"${l.last_name || ''}"`,
+    const headers = ['Name', 'Phone', 'Email', 'Status', 'Created At'];
+    const rows = leads.map((l: any) => [
+      `"${l.name || [l.first_name, l.last_name].filter(Boolean).join(' ') || ''}"`,
       `"${l.phone || ''}"`,
       `"${l.email || ''}"`,
-      `"${l.status || 'pending'}"`,
+      `"${l.status || 'new'}"`,
       `"${l.created_at || ''}"`,
     ]);
 
@@ -83,14 +82,17 @@ export const LeadsPage: React.FC = () => {
     e.preventDefault();
     if (!firstName.trim() || !phone.trim()) return;
 
+    const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
+
     try {
       await createLead.mutateAsync({
-        first_name: firstName,
-        last_name: lastName || undefined,
-        phone,
-        email: email || undefined,
+        name: fullName,
+        first_name: firstName.trim(),
+        last_name: lastName.trim() || undefined,
+        phone: phone.trim(),
+        email: email.trim() || undefined,
         campaign_id: campaignId || undefined,
-        status: 'pending',
+        status: 'new' as any,
       });
       toast('Lead added successfully', 'success');
       setModalOpen(false);
@@ -142,7 +144,7 @@ export const LeadsPage: React.FC = () => {
         <div className="relative">
           <Search size={15} className="absolute left-3 top-2.5 text-[var(--color-text-muted)]" />
           <Input
-            placeholder="Search leads by name or phone..."
+            placeholder="Search leads by name, phone, or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -153,14 +155,17 @@ export const LeadsPage: React.FC = () => {
           <FilterChip active={!statusFilter} onClick={() => setStatusFilter('')}>
             All Leads ({leads.length})
           </FilterChip>
+          <FilterChip active={statusFilter === 'new'} onClick={() => setStatusFilter(statusFilter === 'new' ? '' : 'new')}>
+            New Leads
+          </FilterChip>
+          <FilterChip active={statusFilter === 'contacted'} onClick={() => setStatusFilter(statusFilter === 'contacted' ? '' : 'contacted')}>
+            Contacted
+          </FilterChip>
+          <FilterChip active={statusFilter === 'qualified'} onClick={() => setStatusFilter(statusFilter === 'qualified' ? '' : 'qualified')}>
+            Qualified
+          </FilterChip>
           <FilterChip active={statusFilter === 'converted'} onClick={() => setStatusFilter(statusFilter === 'converted' ? '' : 'converted')}>
             Converted
-          </FilterChip>
-          <FilterChip active={statusFilter === 'in_progress'} onClick={() => setStatusFilter(statusFilter === 'in_progress' ? '' : 'in_progress')}>
-            In Progress
-          </FilterChip>
-          <FilterChip active={statusFilter === 'pending'} onClick={() => setStatusFilter(statusFilter === 'pending' ? '' : 'pending')}>
-            Pending Call
           </FilterChip>
         </FilterBar>
       </div>
@@ -174,7 +179,7 @@ export const LeadsPage: React.FC = () => {
         ) : leads.length === 0 ? (
           <EmptyState
             icon={<Users size={32} />}
-            title="No leads found"
+            title="Your pipeline is empty"
             description="Add your first contact manually or import a CSV lead list."
             action={{
               label: 'Add Prospect',
@@ -195,10 +200,10 @@ export const LeadsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {leads.map((lead) => (
+                {leads.map((lead: any) => (
                   <tr key={lead.id} className="hover:bg-[var(--color-bg-sunken)]/60 transition-colors">
                     <td className="py-3.5 px-4 font-semibold text-[var(--color-text-primary)]">
-                      {lead.first_name} {lead.last_name || ''}
+                      {lead.name || [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Prospect'}
                     </td>
 
                     <td className="py-3.5 px-4 font-mono text-[var(--color-text-secondary)]">
