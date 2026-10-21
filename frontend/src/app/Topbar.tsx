@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
 import { useToast } from '../components/ui';
-import { Search, Bell, LogOut, User, Shield } from 'lucide-react';
+import { Search, Bell, LogOut, User, Shield, CheckCircle2 } from 'lucide-react';
 
 export const Topbar: React.FC = () => {
   const { user, organization, role, signOut } = useAuth();
@@ -11,18 +11,33 @@ export const Topbar: React.FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!dropdownOpen) return;
+    if (!dropdownOpen && !notificationsOpen) return;
     const handleOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDropdownOpen(false);
+        setNotificationsOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [dropdownOpen]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [dropdownOpen, notificationsOpen]);
 
   return (
     <header className="h-14 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-subtle)] px-6 flex items-center justify-between shrink-0 z-10">
@@ -63,14 +78,65 @@ export const Topbar: React.FC = () => {
           )}
         </div>
 
-        {/* Notifications Icon */}
-        <button
-          className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-sunken)] rounded-[var(--radius-sm)] transition-colors cursor-pointer relative"
-          title="Notifications"
-        >
-          <Bell size={16} />
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-action-primary)]" />
-        </button>
+        {/* Notifications Popover */}
+        <div className="relative" ref={notificationsRef}>
+          <button
+            onClick={() => {
+              setNotificationsOpen((prev) => !prev);
+              if (dropdownOpen) setDropdownOpen(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setNotificationsOpen((prev) => !prev);
+                if (dropdownOpen) setDropdownOpen(false);
+              }
+            }}
+            className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-sunken)] rounded-[var(--radius-sm)] transition-colors cursor-pointer relative"
+            title="Notifications"
+            aria-label="Notifications"
+            aria-expanded={notificationsOpen}
+            aria-haspopup="dialog"
+          >
+            <Bell size={16} />
+          </button>
+
+          {notificationsOpen && (
+            <div
+              role="dialog"
+              aria-label="Notifications panel"
+              className="absolute right-0 mt-2 w-80 sm:w-96 rounded-[var(--radius-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-xl py-0 z-50 animate-slide-up overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    Notifications
+                  </h3>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-[var(--color-bg-sunken)] text-[var(--color-text-muted)]">
+                    0 unread
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-6 text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] flex items-center justify-center mx-auto text-[var(--color-success)]">
+                  <CheckCircle2 size={18} />
+                </div>
+                <h4 className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                  You're all caught up
+                </h4>
+                <p className="text-xs text-[var(--color-text-secondary)] max-w-xs mx-auto">
+                  No new alerts, compliance notices, or system notifications at this time.
+                </p>
+              </div>
+
+              <div className="px-4 py-2.5 bg-[var(--color-bg-sunken)]/60 border-t border-[var(--color-border-subtle)] flex items-center justify-between text-[11px] text-[var(--color-text-muted)] font-mono">
+                <span>Telemetry: Active</span>
+                <span>System Normal</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Profile Dropdown */}
         <div className="relative" ref={dropdownRef}>

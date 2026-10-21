@@ -344,6 +344,15 @@ button {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes ic-waveform {
+  0%, 100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 .animate-ic-pulse {
   animation: ic-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -360,11 +369,21 @@ button {
   animation: ic-slide-up 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.animate-ic-waveform {
+  transform-origin: center;
+  animation: ic-waveform 1.3s ease-in-out infinite;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  .animate-ic-waveform {
+    animation: none !important;
+    transform: scaleY(0.6) !important;
   }
 }

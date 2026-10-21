@@ -47,6 +47,8 @@ export const CampaignsPage: React.FC = () => {
   const [concurrencyLimit, setConcurrencyLimit] = useState(10);
   const [callingStart, setCallingStart] = useState('09:00');
   const [callingEnd, setCallingEnd] = useState('19:00');
+  const [strategy, setStrategy] = useState('direct_qualification');
+  const [confidenceThreshold, setConfidenceThreshold] = useState(80);
 
   const openCreateModal = () => {
     setEditingCampaign(null);
@@ -56,6 +58,29 @@ export const CampaignsPage: React.FC = () => {
     setConcurrencyLimit(10);
     setCallingStart('09:00');
     setCallingEnd('19:00');
+    setStrategy('direct_qualification');
+    setConfidenceThreshold(80);
+    setModalOpen(true);
+  };
+
+  const openEditModal = (camp: Campaign) => {
+    setEditingCampaign(camp);
+    setName(camp.name || '');
+    setAgentId((camp as any).agent_id || camp.agentId || agents[0]?.id || '');
+    const budget = (camp as any).daily_budget ?? (camp.rules?.budgetCapPaise ? camp.rules.budgetCapPaise / 100 : 5000);
+    setDailyBudget(Number(budget));
+    const concurrency = (camp as any).concurrency_limit ?? camp.rules?.concurrency ?? 10;
+    setConcurrencyLimit(Number(concurrency));
+    setCallingStart((camp as any).calling_hours_start || camp.rules?.windowStart || '09:00');
+    setCallingEnd((camp as any).calling_hours_end || camp.rules?.windowEnd || '19:00');
+    setStrategy((camp as any).strategy || 'direct_qualification');
+    setConfidenceThreshold(
+      (camp as any).confidence_threshold !== undefined
+        ? Number((camp as any).confidence_threshold)
+        : (camp as any).confidenceThreshold !== undefined
+          ? Number((camp as any).confidenceThreshold)
+          : 80
+    );
     setModalOpen(true);
   };
 
@@ -74,30 +99,49 @@ export const CampaignsPage: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      toast('Campaign title is required', 'error');
+      return;
+    }
+    if (dailyBudget < 0) {
+      toast('Daily budget cannot be negative', 'error');
+      return;
+    }
+    if (concurrencyLimit < 1) {
+      toast('Max concurrency limit must be at least 1 line', 'error');
+      return;
+    }
+    if (confidenceThreshold < 0 || confidenceThreshold > 100) {
+      toast('Confidence threshold must be between 0 and 100%', 'error');
+      return;
+    }
 
     try {
       if (editingCampaign) {
         await updateCampaign.mutateAsync({
           id: editingCampaign.id,
           updates: {
-            name,
+            name: name.trim(),
             agent_id: agentId || undefined,
-            daily_budget: dailyBudget,
-            concurrency_limit: concurrencyLimit,
+            daily_budget: Number(dailyBudget),
+            concurrency_limit: Number(concurrencyLimit),
             calling_hours_start: callingStart,
             calling_hours_end: callingEnd,
+            strategy,
+            confidence_threshold: Number(confidenceThreshold),
           },
         });
-        toast('Campaign updated', 'success');
+        toast('Campaign updated successfully', 'success');
       } else {
         await createCampaign.mutateAsync({
-          name,
+          name: name.trim(),
           agent_id: agentId || undefined,
-          daily_budget: dailyBudget,
-          concurrency_limit: concurrencyLimit,
+          daily_budget: Number(dailyBudget),
+          concurrency_limit: Number(concurrencyLimit),
           calling_hours_start: callingStart,
           calling_hours_end: callingEnd,
+          strategy,
+          confidence_threshold: Number(confidenceThreshold),
           status: 'active',
         });
         toast('New campaign launched', 'success');
@@ -155,7 +199,16 @@ export const CampaignsPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {campaigns.map((camp) => {
-            const assignedAgent = agents.find((a) => a.id === camp.agent_id);
+            const assignedAgent = agents.find((a) => a.id === ((camp as any).agent_id || camp.agentId));
+            const budgetDisplay = (camp as any).daily_budget
+              ? formatCurrency((camp as any).daily_budget)
+              : camp.rules?.budgetCapPaise
+              ? formatCurrency(camp.rules.budgetCapPaise / 100)
+              : 'Unlimited';
+            const windowStart = (camp as any).calling_hours_start || camp.rules?.windowStart || '09:00';
+            const windowEnd = (camp as any).calling_hours_end || camp.rules?.windowEnd || '19:00';
+            const concurrency = (camp as any).concurrency_limit ?? camp.rules?.concurrency ?? 10;
+
             return (
               <div
                 key={camp.id}
@@ -188,7 +241,7 @@ export const CampaignsPage: React.FC = () => {
                       Daily Budget
                     </span>
                     <span className="font-semibold text-[var(--color-text-primary)] font-mono">
-                      {camp.daily_budget ? formatCurrency(camp.daily_budget) : 'Unlimited'}
+                      {budgetDisplay}
                     </span>
                   </div>
 
@@ -197,7 +250,7 @@ export const CampaignsPage: React.FC = () => {
                       Calling Window
                     </span>
                     <span className="font-semibold text-[var(--color-text-primary)] font-mono">
-                      {camp.calling_hours_start} - {camp.calling_hours_end}
+                      {windowStart} - {windowEnd}
                     </span>
                   </div>
 
@@ -206,16 +259,17 @@ export const CampaignsPage: React.FC = () => {
                       Max Concurrency
                     </span>
                     <span className="font-semibold text-[var(--color-text-primary)] font-mono">
-                      {camp.concurrency_limit} lines
+                      {concurrency} lines
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
+                <div className="pt-3 border-t border-[var(--color-border-subtle)] flex items-center justify-between gap-2">
                   <Button
                     variant={camp.status === 'active' ? 'outline' : 'primary'}
                     size="sm"
                     onClick={() => handleToggleStatus(camp)}
+                    disabled={updateCampaign.isPending}
                   >
                     {camp.status === 'active' ? (
                       <>
@@ -227,6 +281,14 @@ export const CampaignsPage: React.FC = () => {
                       </>
                     )}
                   </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => openEditModal(camp)}
+                    disabled={updateCampaign.isPending}
+                  >
+                    <Settings size={13} className="mr-1.5" /> Edit Campaign
+                  </Button>
                 </div>
               </div>
             );
@@ -234,11 +296,11 @@ export const CampaignsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Create Campaign */}
+      {/* Modal: Create or Edit Campaign */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="Create Outbound Campaign"
+        title={editingCampaign ? 'Edit Outbound Campaign' : 'Create Outbound Campaign'}
       >
         <form onSubmit={handleSave} className="space-y-4">
           <Input
@@ -253,19 +315,24 @@ export const CampaignsPage: React.FC = () => {
             label="Assign AI Voice Agent"
             value={agentId}
             onChange={(e) => setAgentId(e.target.value)}
-            options={agents.map((a) => ({ value: a.id, label: `${a.name} (${a.language})` }))}
+            options={[
+              { value: '', label: 'Unassigned (None)' },
+              ...agents.map((a) => ({ value: a.id, label: `${a.name} (${a.language || 'en-IN'})` })),
+            ]}
           />
 
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Daily Budget (INR)"
               type="number"
+              min={0}
               value={dailyBudget}
               onChange={(e) => setDailyBudget(Number(e.target.value))}
             />
             <Input
               label="Max Concurrency Limit"
               type="number"
+              min={1}
               value={concurrencyLimit}
               onChange={(e) => setConcurrencyLimit(Number(e.target.value))}
             />
@@ -286,12 +353,45 @@ export const CampaignsPage: React.FC = () => {
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Dialing & Conversation Strategy"
+              value={strategy}
+              onChange={(e) => setStrategy(e.target.value)}
+              options={[
+                { value: 'direct_qualification', label: 'Direct Qualification' },
+                { value: 'aggressive_followup', label: 'Aggressive Follow-up' },
+                { value: 'appointment_booking', label: 'Appointment Booking' },
+                { value: 'conversational_survey', label: 'Conversational Survey' },
+              ]}
+            />
+            <Input
+              label="Confidence Threshold (%)"
+              type="number"
+              min={1}
+              max={100}
+              value={confidenceThreshold}
+              onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
+            />
+          </div>
+
           <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="outline" size="sm" onClick={() => setModalOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModalOpen(false)}
+              disabled={createCampaign.isPending || updateCampaign.isPending}
+            >
               Cancel
             </Button>
-            <Button type="submit" size="sm" loading={createCampaign.isPending}>
-              Launch Campaign
+            <Button
+              type="submit"
+              size="sm"
+              loading={editingCampaign ? updateCampaign.isPending : createCampaign.isPending}
+              disabled={createCampaign.isPending || updateCampaign.isPending}
+            >
+              {editingCampaign ? 'Save Changes' : 'Launch Campaign'}
             </Button>
           </div>
         </form>

@@ -33,10 +33,27 @@ export const LiveCallMonitorPage: React.FC = () => {
   const [bargeInActive, setBargeInActive] = useState(false);
 
   useEffect(() => {
-    if (callsData?.data) {
-      const ongoing = callsData.data.find((c) => c.status === 'in_progress') || callsData.data[0];
-      if (ongoing) setActiveCall(ongoing);
-    }
+    if (!callsData?.data || callsData.data.length === 0) return;
+    setActiveCall((prev) => {
+      if (!prev) {
+        return callsData.data.find((c) => c.status === 'in_progress') || callsData.data[0];
+      }
+      const existing = callsData.data.find((c) => c.id === prev.id);
+      if (existing) {
+        // Only trigger update if substantive call state fields actually changed
+        if (
+          existing.status !== prev.status ||
+          existing.transcript !== prev.transcript ||
+          existing.duration_seconds !== prev.duration_seconds ||
+          existing.sentiment !== prev.sentiment
+        ) {
+          return existing;
+        }
+        return prev;
+      }
+      // If previously selected call is no longer present, switch to active or first
+      return callsData.data.find((c) => c.status === 'in_progress') || callsData.data[0];
+    });
   }, [callsData]);
 
   // Realtime updates
@@ -65,7 +82,10 @@ export const LiveCallMonitorPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-error)] animate-ping" />
+            <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+              <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-error)] opacity-50" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-error)]" />
+            </span>
             <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               Live WebRTC Stream &bull; Sub-500ms Turnaround
             </span>
@@ -118,7 +138,7 @@ export const LiveCallMonitorPage: React.FC = () => {
                   <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">
                     Line #{c.id.slice(0, 8)}
                   </span>
-                  <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-success)] opacity-90" />
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-[var(--color-text-muted)] font-mono">
                   <span>{c.direction}</span>
@@ -146,12 +166,20 @@ export const LiveCallMonitorPage: React.FC = () => {
           {/* Live Audio Level Visualization */}
           <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-bg-sunken)] flex items-center justify-between gap-3">
             <span className="text-xs text-[var(--color-text-muted)] font-medium">Acoustic Signal:</span>
-            <div className="flex items-center gap-1 flex-1 justify-center">
+            <div
+              className="flex items-center gap-1 flex-1 justify-center h-7"
+              aria-label="Acoustic signal visualization"
+              role="img"
+            >
               {[40, 65, 30, 80, 95, 60, 45, 75, 35, 90, 50, 60, 30, 85].map((h, i) => (
                 <div
                   key={i}
-                  className="w-1.5 rounded-full bg-[var(--color-action-primary)] animate-pulse"
-                  style={{ height: `${h * 0.28}px`, animationDelay: `${i * 0.08}s` }}
+                  className="w-1.5 rounded-full bg-[var(--color-action-primary)] animate-ic-waveform"
+                  style={{
+                    height: `${Math.max(8, Math.round(h * 0.26))}px`,
+                    animationDelay: `${((i * 0.11) % 0.8).toFixed(2)}s`,
+                    animationDuration: `${1.1 + (i % 3) * 0.25}s`,
+                  }}
                 />
               ))}
             </div>

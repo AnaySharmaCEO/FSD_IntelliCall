@@ -34,9 +34,22 @@ export const DashboardPage: React.FC = () => {
 
   // Initialize and listen to realtime call events
   useEffect(() => {
-    if (callsData?.data) {
-      setLiveCalls(callsData.data);
-    }
+    if (!callsData?.data) return;
+    setLiveCalls((prev) => {
+      if (
+        prev.length === callsData.data.length &&
+        prev.every(
+          (c, i) =>
+            c.id === callsData.data[i]?.id &&
+            c.status === callsData.data[i]?.status &&
+            c.duration_seconds === callsData.data[i]?.duration_seconds &&
+            c.sentiment === callsData.data[i]?.sentiment
+        )
+      ) {
+        return prev;
+      }
+      return callsData.data;
+    });
   }, [callsData]);
 
   useEffect(() => {
@@ -63,7 +76,10 @@ export const DashboardPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
+            <span className="relative flex h-2 w-2 items-center justify-center">
+              <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-success)] opacity-40" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-success)]" />
+            </span>
             <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
               System Live &bull; Resonology AI Engine Online
             </span>
