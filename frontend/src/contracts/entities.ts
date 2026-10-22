@@ -83,6 +83,12 @@ export const LeadSchema = z.object({
       consentType: "none",
       suppressed: false,
     }),
+  // Pipeline / Kanban fields (added in migration 20261022000001)
+  estimatedValue: z.number().default(0),
+  nextAction: z.string().optional(),
+  stageEnteredAt: z.string().optional(),
+  // Computed client-side from stageEnteredAt (not stored)
+  daysInStage: z.number().optional(),
   lastCallAt: z.string().optional(),
   lastOutcome: z.string().optional(),
   nextFollowUpAt: z.string().optional(),

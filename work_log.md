@@ -317,6 +317,46 @@
      - Specified measurement formula for Time-To-First-Byte (TTFB) and WebRTC roundtrip times.
 * **Commit Reference:** `65dcfbb` (`docs: create cross-layer app v2 debugging reports and analysis`)
 
+---
+
+### [2026-10-22 07:42:00 +05:30] — Enterprise Sales Pipeline & Leads Redesign with Autonomous AI Voice Call Scheduling
+* **Author:** Anay Sharma
+* **Phase:** Sales Pipeline & Leads Redesign (Kanban & Detail Views)
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Architecture & Redesign Specification:**
+     - Created comprehensive plan `docs/frontend/leads_redesign_plan.md` translating modern CRM pipeline design into IntelliCall's autonomous voice AI outbound calling platform.
+     - Designed 7-stage pipeline mapping: New Lead (`new`), AI Called (`contacted`), Interested (`qualified`), Meeting Booked (`meeting_booked`), Proposal Stage (`opportunity`), Won / Converted (`converted`), and Lost / Stalled (`stalled`).
+  2. **Database Migration (`supabase/migrations/20261022000001_leads_pipeline_fields.sql`):**
+     - Added `estimated_value` (`NUMERIC DEFAULT 0`), `next_action` (`TEXT`), and `stage_entered_at` (`TIMESTAMPTZ DEFAULT now()`) to `public.leads`.
+     - Created index `idx_leads_stage_entered_at` for high-performance retrieval of stuck prospects (>5 days without movement).
+  3. **Contracts & API Layer Enhancements:**
+     - Extended `LeadSchema` in `contracts/entities.ts` with `estimatedValue`, `nextAction`, `stageEnteredAt`, and computed `daysInStage`.
+     - Added `createCall` and `deleteLead` methods to `ApiClient`, `SupabaseApiClient`, and `MockApiClient`.
+     - Injected `stage_entered_at` updates and automatic organization resolution into `createLead` and `updateLead`.
+     - Added `useCreateCall` and `useDeleteLead` React Query hooks in `api/hooks/index.ts`.
+  4. **Pipeline Summary KPI Metrics (`PipelineMetricTiles.tsx`):**
+     - Live calculation of Active Pipeline Value ($), In-Flight Opportunities count, Stuck / At Risk count (>5 days), and Won / Converted count with win rate percentage.
+     - Full honest empty state support without synthetic placeholders.
+  5. **Kanban Board & Compact Table Switcher (`LeadKanbanBoard.tsx`, `LeadCompactTable.tsx`, `LeadCard.tsx`):**
+     - Rebuilt `LeadsPage.tsx` with a dual Board / Compact List view switcher, persisted to `localStorage` (`intellicall_leads_view`).
+     - Kanban columns for all 7 pipeline stages with stage-specific count badges, total estimated value sums, and stuck prospect alerts.
+     - Compact table view with responsive columns for opportunity name, stage badge, deal value, time in stage, next action, source, and quick action buttons.
+  6. **Autonomous Resonology AI Call Scheduling (`ScheduleAICallModal.tsx`):**
+     - Integrated AI voice agent dispatching modal directly on every lead card, table row, and detail view.
+     - Allows selecting voice agent (`useAgents()`), campaign context (`useCampaigns()`), and dialing timing (immediate queue or scheduled future datetime).
+  7. **Pipeline Progression Modal (`MoveStageModal.tsx`):**
+     - Modal allowing sales operators to advance or regress lead stages, update next action steps, adjust deal values, and log structured disqualification reasons.
+  8. **Comprehensive Lead Detail Page (`LeadDetailPage.tsx`):**
+     - Created full `/leads/:id` detail view with back navigation, primary deal value card, visual stage progression stepper, and stuck indicators.
+     - Embedded call history timeline showing all autonomous AI calls dispatched to the prospect with direct links to call transcripts and audio analysis.
+     - Account notes editor with inline saving to the database.
+     - Prospect telemetry panel (verified phone, email, ingestion date, deal size) and quick actions (Dispatch Call, Advance Stage, Book Appointment, Delete Lead).
+  9. **Route Integration & Build Verification:**
+     - Registered `/leads/:id` route in `App.tsx`.
+     - Verified production build via `npm run build` in `frontend/` — passed with **0 errors** (2,277 modules transformed).
+
+
 
 
 

@@ -100,6 +100,23 @@ export class MockApiClient implements ApiClient {
     return { success: true, analysisId: newAnalysis.id };
   }
 
+  async createCall(call: Partial<Call>): Promise<Call> {
+    const newCall: any = {
+      id: `call-${Date.now()}`,
+      orgId: this.org.id,
+      leadId: call.leadId || (call as any).lead_id,
+      campaignId: call.campaignId || (call as any).campaign_id || null,
+      agentId: call.agentId || (call as any).agent_id,
+      status: (call as any).status || 'scheduled',
+      direction: (call as any).direction || 'outbound',
+      durationSeconds: 0,
+      createdAt: new Date().toISOString(),
+      ...call,
+    };
+    this.calls.unshift(newCall);
+    return newCall;
+  }
+
   async listAgents(): Promise<Agent[]> {
     return [...this.agents];
   }
@@ -243,6 +260,10 @@ export class MockApiClient implements ApiClient {
       updated_at: new Date().toISOString(),
     };
     return this.leads[idx];
+  }
+
+  async deleteLead(id: string): Promise<void> {
+    this.leads = this.leads.filter((l) => l.id !== id);
   }
 
   async listComplianceRules(): Promise<ComplianceRule[]> {

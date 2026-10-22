@@ -1,69 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Plus,
   Search,
   UploadCloud,
   Download,
-  Phone,
-  Mail,
-  CheckCircle2,
-  Filter,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
-import { useLeads, useCreateLead, useCampaigns } from '../../api/hooks';
-import { StatusChip } from '../../components/patterns';
+import { useLeads } from '../../api/hooks';
 import { CsvImportModal } from './CsvImportModal';
 import {
   Button,
-  Badge,
   Input,
-  Select,
-  Modal,
   FilterBar,
   FilterChip,
   SkeletonTable,
-  EmptyState,
   useToast,
 } from '../../components/ui';
-import { formatPhone, formatDate } from '../../lib/format';
 import type { Lead } from '../../contracts/entities';
+import { PipelineMetricTiles } from './components/PipelineMetricTiles';
+import { LeadKanbanBoard } from './components/LeadKanbanBoard';
+import { LeadCompactTable } from './components/LeadCompactTable';
+import { ScheduleAICallModal } from './components/ScheduleAICallModal';
+import { MoveStageModal, PIPELINE_STAGES } from './components/MoveStageModal';
+import { AddLeadModal } from './components/AddLeadModal';
 
 export const LeadsPage: React.FC = () => {
+  const { toast } = useToast();
+
+  // View state: 'board' (Kanban) or 'compact' (Table)
+  const [viewMode, setViewMode] = useState<'board' | 'compact'>(() => {
+    return (localStorage.getItem('intellicall_leads_view') as 'board' | 'compact') || 'board';
+  });
+
+  const handleToggleView = (mode: 'board' | 'compact') => {
+    setViewMode(mode);
+    localStorage.setItem('intellicall_leads_view', mode);
+  };
+
+  // Search & Filter state
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [stageFilter, setStageFilter] = useState('');
+
+  // Modals state
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [callModalLead, setCallModalLead] = useState<Lead | null>(null);
+  const [moveModalLead, setMoveModalLead] = useState<Lead | null>(null);
 
-  // Form State
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [campaignId, setCampaignId] = useState('');
-
-  const { data: campaigns = [] } = useCampaigns();
+  // Data fetching
   const { data: leadsResult, isLoading, refetch } = useLeads({
     search: search.trim() || undefined,
-    status: statusFilter || undefined,
+    status: stageFilter || undefined,
   });
-  const createLead = useCreateLead();
-  const { toast } = useToast();
 
   const leads = leadsResult?.data || [];
 
+  // Filter client-side if search or stageFilter
+  const filteredLeads = leads.filter((lead: any) => {
+    const leadName = lead.name || [lead.firstName, lead.lastName].filter(Boolean).join(' ') || '';
+    const matchesSearch = !search.trim() ||
+      leadName.toLowerCase().includes(search.toLowerCase()) ||
+      (lead.company && lead.company.toLowerCase().includes(search.toLowerCase())) ||
+      (lead.phone && lead.phone.includes(search)) ||
+      (lead.email && lead.email.toLowerCase().includes(search.toLowerCase()));
+
+    const currentStage = lead.stage || lead.status;
+    const matchesStage = !stageFilter || currentStage === stageFilter;
+
+    return matchesSearch && matchesStage;
+  });
+
+  // Export CSV
   const handleExportCsv = () => {
     if (leads.length === 0) {
-      toast('No leads available to export', 'error');
+      toast('No lead records available to export', 'error');
       return;
     }
 
-    const headers = ['Name', 'Phone', 'Email', 'Status', 'Created At'];
+    const headers = ['Name', 'Phone', 'Email', 'Company', 'Stage', 'Estimated Value', 'Next Action', 'Created At'];
     const rows = leads.map((l: any) => [
-      `"${l.name || [l.first_name, l.last_name].filter(Boolean).join(' ') || ''}"`,
+      `"${l.name || [l.firstName, l.lastName].filter(Boolean).join(' ') || ''}"`,
       `"${l.phone || ''}"`,
       `"${l.email || ''}"`,
-      `"${l.status || 'new'}"`,
-      `"${l.created_at || ''}"`,
+      `"${l.company || ''}"`,
+      `"${l.stage || l.status || 'new'}"`,
+      `"${l.estimatedValue || l.estimated_value || 0}"`,
+      `"${(l.nextAction || l.next_action || '').replace(/"/g, '""')}"`,
+      `"${l.createdAt || l.created_at || ''}"`,
     ]);
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
@@ -71,80 +96,89 @@ export const LeadsPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `leads_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `intellicall_leads_export_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast(`Exported ${leads.length} leads to CSV`, 'success');
-  };
-
-  const handleCreateLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!firstName.trim() || !phone.trim()) return;
-
-    const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
-
-    try {
-      await createLead.mutateAsync({
-        name: fullName,
-        first_name: firstName.trim(),
-        last_name: lastName.trim() || undefined,
-        phone: phone.trim(),
-        email: email.trim() || undefined,
-        campaign_id: campaignId || undefined,
-        status: 'new' as any,
-      });
-      toast('Lead added successfully', 'success');
-      setModalOpen(false);
-      setFirstName('');
-      setLastName('');
-      setPhone('');
-      setEmail('');
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to add lead', 'error');
-    }
+    toast(`Exported ${leads.length} prospect records to CSV`, 'success');
   };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Header */}
+      {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              Prospect Pipeline
+              Autonomous Sales Engine
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
-            Leads & Contact Lists
+            Sales Pipeline &amp; Prospects
           </h1>
           <p className="text-xs md:text-sm text-[var(--color-text-secondary)] mt-0.5">
-            Manage target prospects, qualification statuses, and campaign assignments.
+            Manage target prospects, qualification stages, and schedule autonomous Resonology voice calls.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Header Action Bar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="flex items-center rounded-[var(--radius-md)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] p-0.5">
+            <button
+              type="button"
+              onClick={() => handleToggleView('board')}
+              className={`p-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                viewMode === 'board'
+                  ? 'bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] shadow-2xs font-semibold'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+              }`}
+              title="Kanban Board View"
+            >
+              <LayoutGrid size={14} />
+              <span className="hidden sm:inline">Board</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleView('compact')}
+              className={`p-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                viewMode === 'compact'
+                  ? 'bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] shadow-2xs font-semibold'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+              }`}
+              title="Compact Table View"
+            >
+              <List size={14} />
+              <span className="hidden sm:inline">Compact</span>
+            </button>
+          </div>
+
           <Button variant="outline" size="sm" onClick={() => setCsvModalOpen(true)}>
             <UploadCloud size={14} className="mr-1.5" />
             Import CSV
           </Button>
+
           <Button variant="outline" size="sm" onClick={handleExportCsv}>
             <Download size={14} className="mr-1.5" />
             Export CSV
           </Button>
-          <Button size="sm" onClick={() => setModalOpen(true)}>
+
+          <Button size="sm" onClick={() => setAddModalOpen(true)}>
             <Plus size={14} className="mr-1.5" />
             Add Prospect
           </Button>
         </div>
       </div>
 
-      {/* Search Toolbar */}
-      <div className="p-4 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-3">
+      {/* Pipeline Summary KPI Tiles */}
+      <PipelineMetricTiles leads={leads} isLoading={isLoading} />
+
+      {/* Search & Filter Toolbar */}
+      <div className="p-4 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-3 shadow-2xs">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-2.5 text-[var(--color-text-muted)]" />
           <Input
-            placeholder="Search leads by name, phone, or email..."
+            placeholder="Search leads by name, company, phone, or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -152,154 +186,66 @@ export const LeadsPage: React.FC = () => {
         </div>
 
         <FilterBar>
-          <FilterChip active={!statusFilter} onClick={() => setStatusFilter('')}>
-            All Leads ({leads.length})
+          <FilterChip active={!stageFilter} onClick={() => setStageFilter('')}>
+            All Prospects ({leads.length})
           </FilterChip>
-          <FilterChip active={statusFilter === 'new'} onClick={() => setStatusFilter(statusFilter === 'new' ? '' : 'new')}>
-            New Leads
-          </FilterChip>
-          <FilterChip active={statusFilter === 'contacted'} onClick={() => setStatusFilter(statusFilter === 'contacted' ? '' : 'contacted')}>
-            Contacted
-          </FilterChip>
-          <FilterChip active={statusFilter === 'qualified'} onClick={() => setStatusFilter(statusFilter === 'qualified' ? '' : 'qualified')}>
-            Qualified
-          </FilterChip>
-          <FilterChip active={statusFilter === 'converted'} onClick={() => setStatusFilter(statusFilter === 'converted' ? '' : 'converted')}>
-            Converted
-          </FilterChip>
+          {PIPELINE_STAGES.map((s) => {
+            const count = leads.filter((l: any) => (l.stage || l.status) === s.value).length;
+            return (
+              <FilterChip
+                key={s.value}
+                active={stageFilter === s.value}
+                onClick={() => setStageFilter(stageFilter === s.value ? '' : s.value)}
+              >
+                {s.label} ({count})
+              </FilterChip>
+            );
+          })}
         </FilterBar>
       </div>
 
-      {/* Leads Table */}
-      <div className="rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] overflow-hidden shadow-2xs">
-        {isLoading ? (
-          <div className="p-4">
-            <SkeletonTable rows={5} />
-          </div>
-        ) : leads.length === 0 ? (
-          <EmptyState
-            icon={<Users size={32} />}
-            title="Your pipeline is empty"
-            description="Add your first contact manually or import a CSV lead list."
-            action={{
-              label: 'Add Prospect',
-              onClick: () => setModalOpen(true),
-            }}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/50 text-[var(--color-text-secondary)] font-semibold uppercase tracking-wider text-[11px]">
-                  <th className="py-3 px-4">Prospect Name</th>
-                  <th className="py-3 px-4">Contact Phone</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Custom Attributes</th>
-                  <th className="py-3 px-4 text-right">Added On</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {leads.map((lead: any) => (
-                  <tr key={lead.id} className="hover:bg-[var(--color-bg-sunken)]/60 transition-colors">
-                    <td className="py-3.5 px-4 font-semibold text-[var(--color-text-primary)]">
-                      {lead.name || [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Prospect'}
-                    </td>
+      {/* Main View: Kanban Board or Compact Table */}
+      {isLoading ? (
+        <div className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)]">
+          <SkeletonTable rows={6} />
+        </div>
+      ) : viewMode === 'board' ? (
+        <LeadKanbanBoard
+          leads={filteredLeads}
+          onScheduleCall={(lead) => setCallModalLead(lead)}
+          onMoveStage={(lead) => setMoveModalLead(lead)}
+        />
+      ) : (
+        <LeadCompactTable
+          leads={filteredLeads}
+          onScheduleCall={(lead) => setCallModalLead(lead)}
+          onMoveStage={(lead) => setMoveModalLead(lead)}
+          onAddLead={() => setAddModalOpen(true)}
+        />
+      )}
 
-                    <td className="py-3.5 px-4 font-mono text-[var(--color-text-secondary)]">
-                      {formatPhone(lead.phone)}
-                    </td>
+      {/* Schedule AI Call Modal */}
+      <ScheduleAICallModal
+        open={Boolean(callModalLead)}
+        lead={callModalLead}
+        onClose={() => setCallModalLead(null)}
+        onSuccess={() => refetch()}
+      />
 
-                    <td className="py-3.5 px-4 text-[var(--color-text-secondary)]">
-                      {lead.email || <span className="text-[var(--color-text-muted)]">&mdash;</span>}
-                    </td>
+      {/* Move Stage Modal */}
+      <MoveStageModal
+        open={Boolean(moveModalLead)}
+        lead={moveModalLead}
+        onClose={() => setMoveModalLead(null)}
+        onSuccess={() => refetch()}
+      />
 
-                    <td className="py-3.5 px-4">
-                      <StatusChip status={lead.status} type="lead" />
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      {lead.custom_fields && Object.keys(lead.custom_fields).length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(lead.custom_fields).map(([k, v]) => (
-                            <span
-                              key={k}
-                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-bg-sunken)] text-[var(--color-text-muted)]"
-                            >
-                              {k}: {String(v)}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-[var(--color-text-muted)]">&mdash;</span>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-4 text-right font-mono text-[var(--color-text-muted)]">
-                      {formatDate(lead.created_at, { includeTime: false })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Modal: Add Lead */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add New Prospect">
-        <form onSubmit={handleCreateLead} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="First Name"
-              placeholder="e.g. Vikram"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              required
-            />
-            <Input
-              label="Last Name"
-              placeholder="e.g. Malhotra"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-            />
-          </div>
-
-          <Input
-            label="Phone Number"
-            placeholder="+91 98765 43210"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-            hint="E.164 international format (+91...)"
-          />
-
-          <Input
-            label="Email Address"
-            type="email"
-            placeholder="prospect@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <Select
-            label="Assign to Campaign"
-            value={campaignId}
-            onChange={(e) => setCampaignId(e.target.value)}
-            options={campaigns.map((c) => ({ value: c.id, label: c.name }))}
-            placeholder="Select a campaign (optional)"
-          />
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="outline" size="sm" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" loading={createLead.isPending}>
-              Save Prospect
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Add Lead Modal */}
+      <AddLeadModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onSuccess={() => refetch()}
+      />
 
       {/* CSV Bulk Import Modal */}
       <CsvImportModal
