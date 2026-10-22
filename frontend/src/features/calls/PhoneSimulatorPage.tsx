@@ -13,15 +13,18 @@ import {
   Radio,
   ArrowLeft,
   CheckCircle2,
-  CalendarCheck,
   AlertCircle,
   Loader2,
+  Key,
+  Flame,
+  Settings,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../api/hooks';
 import { queryKeys } from '../../api/keys';
+import { GeminiLiveSession } from '../../voice/geminiLive';
 
 type CallState = 'standby' | 'ringing' | 'connected' | 'ended';
 
@@ -38,14 +41,10 @@ interface IncomingCallPayload {
   questions?: string[];
 }
 
-const SpeechRecognitionAPI =
-  typeof window !== 'undefined'
-    ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    : null;
-
 export const PhoneSimulatorPage: React.FC = () => {
   const queryClient = useQueryClient();
 
+  // Call States
   const [callState, setCallState] = useState<CallState>('standby');
   const [callData, setCallData] = useState<IncomingCallPayload>({
     callerName: 'FinEdge Capital',
@@ -66,49 +65,37 @@ export const PhoneSimulatorPage: React.FC = () => {
   const [isSpeaker, setIsSpeaker] = useState(true);
   const [micAudioLevel, setMicAudioLevel] = useState<number[]>([15, 25, 40, 20, 60, 35, 50, 25]);
 
-  // Conversational Turns & Transcripts
-  const [dialogueTurn, setDialogueTurn] = useState<number>(1);
+  // Transcripts & Realtime turns
   const [transcript, setTranscript] = useState<{ speaker: 'agent' | 'prospect'; text: string }[]>([]);
-  const [interimSpokenText, setInterimSpokenText] = useState<string>('');
-  const [isListening, setIsListening] = useState<boolean>(false);
 
   // CRM Persistence status
   const [persistStatus, setPersistStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [savedAppointmentId, setSavedAppointmentId] = useState<string | null>(null);
 
-  // Speech Synthesis state
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [activeVoiceName, setActiveVoiceName] = useState<string>('');
+  // Gemini Live Engine Settings & State
+  const [geminiApiKey, setGeminiApiKey] = useState<string>(() => {
+    return (
+      (import.meta.env.VITE_GOOGLE_API_KEY as string) ||
+      localStorage.getItem('resonology_gemini_api_key') ||
+      ''
+    );
+  });
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKeyInput, setTempApiKeyInput] = useState('');
+  const [geminiVoice, setGeminiVoice] = useState<'Aoede' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir'>('Aoede');
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [connectionErrorMsg, setConnectionErrorMsg] = useState<string | null>(null);
 
-  // Refs for audio, timers, and STT
+  // Audio & Hardware Refs
   const audioCtxRef = useRef<AudioContext | null>(null);
   const ringtoneTimerRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
+  const liveSessionRef = useRef<GeminiLiveSession | null>(null);
 
-  const recognitionRef = useRef<any>(null);
-  const silenceTimerRef = useRef<number | null>(null);
-  const isAgentSpeakingRef = useRef<boolean>(false);
-  const callStateRef = useRef<CallState>('standby');
-  const dialogueTurnRef = useRef<number>(1);
-  const isMutedRef = useRef<boolean>(false);
   const callDurationRef = useRef<number>(0);
   const transcriptRef = useRef<{ speaker: 'agent' | 'prospect'; text: string }[]>([]);
-
-  // Keep refs in sync with state for callbacks
-  useEffect(() => {
-    callStateRef.current = callState;
-  }, [callState]);
-
-  useEffect(() => {
-    dialogueTurnRef.current = dialogueTurn;
-  }, [dialogueTurn]);
-
-  useEffect(() => {
-    isMutedRef.current = isMuted;
-  }, [isMuted]);
+  const callDataRef = useRef<IncomingCallPayload>(callData);
 
   useEffect(() => {
     callDurationRef.current = callDuration;
@@ -117,6 +104,10 @@ export const PhoneSimulatorPage: React.FC = () => {
   useEffect(() => {
     transcriptRef.current = transcript;
   }, [transcript]);
+
+  useEffect(() => {
+    callDataRef.current = callData;
+  }, [callData]);
 
   // Lead and Company resolved props
   const leadFirstName = (callData.leadName || 'Vikram').split(' ')[0];
@@ -145,240 +136,7 @@ export const PhoneSimulatorPage: React.FC = () => {
   }, []);
 
   // -------------------------------------------------------------
-  // Voice Selection & Humanization Engine (Speech Synthesis)
-  // -------------------------------------------------------------
-  const pickBestVoice = (availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
-    if (!availableVoices || availableVoices.length === 0) return null;
-
-    // 1. Natural / Online Indian English & Hindi Neural Voices
-    const neuralIndian = availableVoices.find(
-      (v) =>
-        (v.name.includes('Neerja') ||
-          v.name.includes('Swara') ||
-          v.name.includes('Prabhat') ||
-          v.name.includes('हिन्दी') ||
-          v.name.includes('Hindi') ||
-          (v.lang.toLowerCase().includes('in') && v.name.includes('Natural')) ||
-          (v.lang.toLowerCase().includes('in') && v.name.includes('Online')))
-    );
-    if (neuralIndian) return neuralIndian;
-
-    // 2. Any Indian English/Hindi voice
-    const anyIndian = availableVoices.find(
-      (v) =>
-        v.lang.toLowerCase().includes('en-in') ||
-        v.lang.toLowerCase().includes('hi-in') ||
-        v.name.toLowerCase().includes('india')
-    );
-    if (anyIndian) return anyIndian;
-
-    // 3. Natural / Online English Neural voices (e.g. Edge Natural Jenny / Guy / Aria)
-    const naturalEnglish = availableVoices.find(
-      (v) =>
-        (v.name.includes('Natural') || v.name.includes('Online')) &&
-        v.lang.toLowerCase().startsWith('en')
-    );
-    if (naturalEnglish) return naturalEnglish;
-
-    // 4. Clean standard Google / Apple / Microsoft English voices
-    const goodEnglish = availableVoices.find(
-      (v) =>
-        (v.name.includes('Google') ||
-          v.name.includes('Samantha') ||
-          v.name.includes('Daniel') ||
-          v.name.includes('Jenny')) &&
-        v.lang.toLowerCase().startsWith('en')
-    );
-    if (goodEnglish) return goodEnglish;
-
-    return (
-      availableVoices.find((v) => v.lang.toLowerCase().startsWith('en')) ||
-      availableVoices[0] ||
-      null
-    );
-  };
-
-  useEffect(() => {
-    if (!('speechSynthesis' in window)) return;
-
-    const updateVoices = () => {
-      const available = window.speechSynthesis.getVoices();
-      if (available && available.length > 0) {
-        setVoices(available);
-        const best = pickBestVoice(available);
-        if (best) {
-          setActiveVoiceName(best.name);
-        }
-      }
-    };
-
-    updateVoices();
-    window.speechSynthesis.onvoiceschanged = updateVoices;
-
-    return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = null;
-      }
-    };
-  }, []);
-
-  const speakVoice = (text: string, turn: number = 1) => {
-    if (!('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      isAgentSpeakingRef.current = true;
-
-      const utterance = new SpeechSynthesisUtterance(text);
-
-      // Psychological voice modulation per conversational turn:
-      if (turn === 1) {
-        // High-energy, warm, polite opening
-        utterance.rate = 1.02;
-        utterance.pitch = 1.05;
-      } else if (turn === 2) {
-        // Analytical diagnostic inquiry
-        utterance.rate = 1.04;
-        utterance.pitch = 1.02;
-      } else if (turn === 3) {
-        // Chris Voss "No"-oriented close (calm, authoritative downward inflection)
-        utterance.rate = 0.96;
-        utterance.pitch = 0.94;
-      } else {
-        // Confident, decisive CRM confirmation
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-      }
-
-      const currentVoices = window.speechSynthesis.getVoices();
-      const best = pickBestVoice(currentVoices.length > 0 ? currentVoices : voices);
-      if (best) {
-        utterance.voice = best;
-        setActiveVoiceName(best.name);
-      }
-
-      utterance.onend = () => {
-        isAgentSpeakingRef.current = false;
-      };
-
-      utterance.onerror = () => {
-        isAgentSpeakingRef.current = false;
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      isAgentSpeakingRef.current = false;
-    }
-  };
-
-  // -------------------------------------------------------------
-  // Speech-to-Text (STT) Microphone Recognition Pipeline
-  // -------------------------------------------------------------
-  const startSTT = () => {
-    if (!SpeechRecognitionAPI) {
-      console.warn('SpeechRecognition API is not supported in this browser environment.');
-      return;
-    }
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      recognitionRef.current = null;
-    }
-
-    try {
-      const recognition = new SpeechRecognitionAPI();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-IN'; // Indian English / Hinglish
-      recognition.maxAlternatives = 1;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        // Discard microphone audio if agent is currently speaking over device speakers
-        if (isAgentSpeakingRef.current) {
-          return;
-        }
-
-        let interim = '';
-        let final = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item.isFinal) {
-            final += item[0].transcript;
-          } else {
-            interim += item[0].transcript;
-          }
-        }
-
-        if (interim) {
-          setInterimSpokenText(interim);
-
-          // Reset silence timer on interim speech
-          if (silenceTimerRef.current) {
-            window.clearTimeout(silenceTimerRef.current);
-          }
-          silenceTimerRef.current = window.setTimeout(() => {
-            if (interim.trim().length > 1 && !isAgentSpeakingRef.current) {
-              setInterimSpokenText('');
-              handleProspectReply(interim.trim());
-            }
-          }, 1100);
-        }
-
-        if (final.trim()) {
-          if (silenceTimerRef.current) {
-            window.clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = null;
-          }
-          setInterimSpokenText('');
-          handleProspectReply(final.trim());
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        if (event.error === 'no-speech') return;
-        console.warn('Speech recognition notice:', event.error);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-        // Automatically restart if call is still live and not muted
-        if (callStateRef.current === 'connected' && !isMutedRef.current) {
-          try {
-            recognition.start();
-          } catch {}
-        }
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (err) {
-      console.warn('Could not initialize SpeechRecognition:', err);
-    }
-  };
-
-  const stopSTT = () => {
-    if (silenceTimerRef.current) {
-      window.clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      recognitionRef.current = null;
-    }
-    setIsListening(false);
-    setInterimSpokenText('');
-  };
-
-  // -------------------------------------------------------------
-  // Web Audio Ringtone Generator & Mic Stream Analyser
+  // Web Audio Ringtone Generator
   // -------------------------------------------------------------
   const playRingtone = () => {
     try {
@@ -455,48 +213,6 @@ export const PhoneSimulatorPage: React.FC = () => {
     }
   };
 
-  const setupMicStream = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      micStreamRef.current = stream;
-
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        const src = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 32;
-        src.connect(analyser);
-        analyserRef.current = analyser;
-
-        const updateLevels = () => {
-          if (!analyserRef.current) return;
-          const data = new Uint8Array(analyserRef.current.frequencyBinCount);
-          analyserRef.current.getByteFrequencyData(data);
-          const sliced = Array.from(data.slice(0, 8)).map((v) =>
-            Math.max(12, Math.round((v / 255) * 80))
-          );
-          setMicAudioLevel(sliced);
-          requestAnimationFrame(updateLevels);
-        };
-        updateLevels();
-      }
-    } catch {}
-  };
-
-  const stopMicStream = () => {
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = null;
-    }
-  };
-
   // -------------------------------------------------------------
   // Supabase Realtime Listener for Incoming Outbound Calls
   // -------------------------------------------------------------
@@ -520,7 +236,6 @@ export const PhoneSimulatorPage: React.FC = () => {
           questions: payload?.questions,
         });
         setTranscript([]);
-        setDialogueTurn(1);
         setPersistStatus('idle');
         setSavedAppointmentId(null);
         setCallState('ringing');
@@ -532,11 +247,7 @@ export const PhoneSimulatorPage: React.FC = () => {
       supabase.removeChannel(channel);
       stopRingtone();
       releaseWakeLock();
-      stopMicStream();
-      stopSTT();
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      liveSessionRef.current?.stop();
     };
   }, []);
 
@@ -556,12 +267,13 @@ export const PhoneSimulatorPage: React.FC = () => {
   }, [callState]);
 
   // -------------------------------------------------------------
-  // CRM Database Persistence Engine
+  // CRM Database Persistence Engine (Invoked by Gemini Tool Call)
   // -------------------------------------------------------------
-  const persistAppointmentToCRM = async () => {
+  const persistAppointmentToCRM = async (dayText?: string, timeText?: string, notesText?: string) => {
     setPersistStatus('saving');
     try {
-      let targetLeadId = callData.leadId;
+      const activeCallData = callDataRef.current;
+      let targetLeadId = activeCallData.leadId;
       let targetOrgId: string | null = null;
 
       if (!targetLeadId) {
@@ -596,6 +308,8 @@ export const PhoneSimulatorPage: React.FC = () => {
       apptDate.setDate(apptDate.getDate() + daysUntilThursday);
       apptDate.setHours(16, 0, 0, 0);
 
+      const resolvedDayTime = `${dayText || 'Thursday'} ${timeText || '4:00 PM'}`;
+
       if (targetOrgId && targetLeadId) {
         // 1. Insert row into appointments table
         const { data: createdAppt, error: apptError } = await supabase
@@ -603,17 +317,17 @@ export const PhoneSimulatorPage: React.FC = () => {
           .insert({
             organization_id: targetOrgId,
             lead_id: targetLeadId,
-            call_id: callData.callId || null,
+            call_id: activeCallData.callId || null,
             scheduled_for: apptDate.toISOString(),
             status: 'scheduled',
             booking_source: 'ai_booked',
-            notes: `Locked via Resonology AI Voice: ${offer} (${company})`,
+            notes: `Locked via Gemini Live: ${notesText || offer} (${company}) [Slot: ${resolvedDayTime}]`,
           })
           .select()
           .maybeSingle();
 
         if (apptError) {
-          console.error('Supabase appointment insertion error:', apptError);
+          console.error('[Supabase] Appointment insert error:', apptError);
         } else {
           setSavedAppointmentId(createdAppt?.id || 'CONFIRMED');
         }
@@ -624,14 +338,14 @@ export const PhoneSimulatorPage: React.FC = () => {
           .update({
             status: 'meeting_booked',
             stage_entered_at: new Date().toISOString(),
-            next_action: `Portfolio audit confirmed for Thursday 4:00 PM`,
+            next_action: `Portfolio audit confirmed for ${resolvedDayTime}`,
             last_activity_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq('id', targetLeadId);
 
         // 3. Update Call row if Call ID exists
-        if (callData.callId) {
+        if (activeCallData.callId) {
           const transcriptText = transcriptRef.current
             .map((t) => `${t.speaker.toUpperCase()}: ${t.text}`)
             .join('\n');
@@ -644,125 +358,161 @@ export const PhoneSimulatorPage: React.FC = () => {
               ended_at: new Date().toISOString(),
               transcript: transcriptText,
             })
-            .eq('id', callData.callId);
+            .eq('id', activeCallData.callId);
         }
 
-        // 4. Invalidate TanStack Query caches so all dashboard/leads/appointments views update instantly
+        // 4. Invalidate TanStack Query caches for real-time reactivity
         queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.calls.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
 
         setPersistStatus('saved');
+        return {
+          status: 'confirmed',
+          appointment_id: createdAppt?.id || 'CONFIRMED',
+          message: `Confirmed slot locked for ${resolvedDayTime} in Supabase CRM.`,
+        };
       } else {
         setPersistStatus('error');
+        return { status: 'error', message: 'Target lead or organization could not be resolved.' };
       }
-    } catch (err) {
-      console.error('Failed to persist appointment to Supabase:', err);
+    } catch (err: any) {
+      console.error('[Supabase] Failed to persist appointment:', err);
       setPersistStatus('error');
+      return { status: 'error', message: err.message };
     }
   };
 
   // -------------------------------------------------------------
-  // Call Lifecycle & Conversational Turn Transitions
+  // Call Lifecycle & Gemini Live Multimodal Connection
   // -------------------------------------------------------------
   const handleAnswerCall = async () => {
     stopRingtone();
+
+    // Check if API key is present
+    if (!geminiApiKey || geminiApiKey.trim() === '') {
+      setShowApiKeyModal(true);
+      return;
+    }
+
     setCallState('connected');
+    setConnectionStatus('connecting');
+    setConnectionErrorMsg(null);
     setPersistStatus('idle');
     setSavedAppointmentId(null);
     await requestWakeLock();
-    await setupMicStream();
-    startSTT();
 
-    // Turn 1: Professional Non-Slimeball Opening (Respectful Permission)
-    const turn1Text = `Namaste ${leadFirstName} ji, Anay bol raha hoon ${company} se. Ek quick minute baat ho sakti hai aapse?`;
-    setTranscript([{ speaker: 'agent', text: turn1Text }]);
-    setDialogueTurn(1);
-    setTimeout(() => {
-      speakVoice(turn1Text, 1);
-    }, 600);
-  };
+    // Build the exact psychological and tactical system instructions
+    const systemInstruction = `
+You are Anay, an elite growth and vehicle loan refinancing consultant calling from ${company}.
+You are conducting a live, high-stakes phone conversation with ${callData.leadName || 'Vikram Malhotra'}.
 
-  const handleProspectReply = (prospectText: string) => {
-    if (!prospectText || !prospectText.trim()) return;
+ABSOLUTE CARDINAL DIRECTIVES:
+1. NEVER FRAME YOURSELF AS AN AI: You are a real human consultant speaking live on a phone call. Never say "As an AI", "I'm a virtual agent", or "Based on my data".
+2. LAW 4 (BREVITY & POWER): Keep every response strictly under 20 words. Elite callers never recite long paragraphs. Every sentence must be concise, crisp, and conversational.
+3. CHRIS VOSS TACTICAL EMPATHY: Label unspoken prospect hesitation directly (e.g., "Sounds like you're skeptical about refinancing promises...", "I know you're busy right now...").
+4. LINGUISTIC CHAMELEON: Code-switch seamlessly. Mirror the prospect. If they speak Hindi or Hinglish, speak polished, respectful Indian business Hinglish ("Aap", "Ji", "Bilkul", "Definitely"). If they speak pure English, respond with high-level corporate English.
+5. CONVERSATIONAL ROADMAP:
+   - Turn 1 Opening: "Namaste ${leadFirstName} ji, Anay bol raha hoon ${company} se. Ek quick minute baat ho sakti hai aapse?"
+   - Turn 2 Diagnostic Hook: Point out that ${company} specializes in ${motto}. Ask: "${q1}"
+   - Turn 3 Chris Voss 'No'-Oriented Close: "Would you be totally opposed to ${offer} with our team this Thursday?"
+   - Turn 4 Booking Lock: When they agree or suggest a time, immediately trigger the 'book_appointment' tool, confirm the slot warmly, and say goodbye.
+6. TOOL TRIGGER: When the user agrees to Thursday or any specific slot, execute the 'book_appointment' function tool immediately.
+`.trim();
 
-    const currentTurn = dialogueTurnRef.current;
-    const newTranscript = [...transcriptRef.current, { speaker: 'prospect' as const, text: prospectText }];
-    setTranscript(newTranscript);
+    try {
+      const liveSession = new GeminiLiveSession({
+        apiKey: geminiApiKey,
+        model: 'gemini-2.0-flash-exp',
+        voiceName: geminiVoice,
+        systemInstruction: systemInstruction,
+        onConnected: () => {
+          setConnectionStatus('connected');
+        },
+        onAudioLevel: (levels) => {
+          setMicAudioLevel(levels);
+        },
+        onUserSpeech: (text) => {
+          setTranscript((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.speaker === 'prospect') {
+              return [...prev.slice(0, -1), { speaker: 'prospect', text: `${last.text} ${text}`.trim() }];
+            }
+            return [...prev, { speaker: 'prospect', text }];
+          });
+        },
+        onAgentSpeech: (text) => {
+          setTranscript((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.speaker === 'agent') {
+              return [...prev.slice(0, -1), { speaker: 'agent', text: `${last.text} ${text}`.trim() }];
+            }
+            return [...prev, { speaker: 'agent', text }];
+          });
+        },
+        onToolCall: async (name, args) => {
+          if (name === 'book_appointment') {
+            const result = await persistAppointmentToCRM(args?.day, args?.time, args?.notes);
+            // Auto finish call 3.5s after appointment lock
+            setTimeout(() => {
+              handleEndCall();
+            }, 3800);
+            return result;
+          }
+          return { status: 'acknowledged' };
+        },
+        onError: (err) => {
+          console.error('[Simulator] Gemini Live error:', err);
+          setConnectionStatus('error');
+          setConnectionErrorMsg(err.message || 'Connection failed.');
+        },
+        onClose: () => {
+          setConnectionStatus('idle');
+        },
+      });
 
-    if (currentTurn === 1) {
-      // Turn 2: Strategic Value Hook & Diagnostic Discovery Question
-      const turn2Text = `Actually ${company} mein hum ${motto} par focus karte hain. Wanted to ask—${q1}?`;
-      setTimeout(() => {
-        setTranscript((prev) => [...prev, { speaker: 'agent', text: turn2Text }]);
-        setDialogueTurn(2);
-        speakVoice(turn2Text, 2);
-      }, 500);
-    } else if (currentTurn === 2) {
-      // Turn 3: Chris Voss "No"-Oriented Close
-      const turn3Text = `Right. Would you be totally opposed to ${offer} with our team this Thursday?`;
-      setTimeout(() => {
-        setTranscript((prev) => [...prev, { speaker: 'agent', text: turn3Text }]);
-        setDialogueTurn(3);
-        speakVoice(turn3Text, 3);
-      }, 500);
-    } else if (currentTurn === 3) {
-      // Turn 4: Locked CRM Appointment & Authoritative Close
-      const turn4Text = `Perfect, Thursday 4 PM lock kar diya hai aapke calendar par. Thank you ${leadFirstName} ji, talk to you Thursday.`;
-      setTimeout(() => {
-        setTranscript((prev) => [...prev, { speaker: 'agent', text: turn4Text }]);
-        setDialogueTurn(4);
-        speakVoice(turn4Text, 4);
-
-        // Commit immediately to Supabase
-        persistAppointmentToCRM();
-
-        setTimeout(() => {
-          handleEndCall();
-        }, 4000);
-      }, 500);
+      liveSessionRef.current = liveSession;
+      await liveSession.start();
+    } catch (err: any) {
+      console.error('[Simulator] Failed to start Gemini Live:', err);
+      setConnectionStatus('error');
+      setConnectionErrorMsg(err.message || 'Failed to start Live session');
     }
   };
 
   const handleDeclineCall = () => {
     stopRingtone();
-    stopSTT();
+    liveSessionRef.current?.stop();
     setCallState('standby');
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   };
 
   const handleEndCall = () => {
     stopRingtone();
     releaseWakeLock();
-    stopMicStream();
-    stopSTT();
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    liveSessionRef.current?.stop();
     setCallState('ended');
     setTimeout(() => {
       setCallState('standby');
       setCallDuration(0);
       setTranscript([]);
+      setConnectionStatus('idle');
     }, 4500);
   };
 
   const triggerTestCall = () => {
     setTranscript([]);
-    setDialogueTurn(1);
     setPersistStatus('idle');
     setSavedAppointmentId(null);
     setCallState('ringing');
     playRingtone();
   };
 
-  const toggleMute = () => {
-    const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
-    if (nextMuted) {
-      stopSTT();
-    } else {
-      startSTT();
-    }
+  const saveApiKey = (key: string) => {
+    const cleanKey = key.trim();
+    setGeminiApiKey(cleanKey);
+    localStorage.setItem('resonology_gemini_api_key', cleanKey);
+    setShowApiKeyModal(false);
   };
 
   const formatTimer = (secs: number) => {
@@ -771,10 +521,16 @@ export const PhoneSimulatorPage: React.FC = () => {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handleQuickChipText = (text: string) => {
+    // Send directly over Gemini Live WebSocket
+    setTranscript((prev) => [...prev, { speaker: 'prospect', text }]);
+    liveSessionRef.current?.sendTextMessage(text);
+  };
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 select-none font-sans">
-      {/* Back navigation pill */}
-      <div className="absolute top-4 left-4 z-20">
+      {/* Back navigation & Settings Pill */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
         <Link
           to="/dashboard"
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
@@ -782,23 +538,43 @@ export const PhoneSimulatorPage: React.FC = () => {
           <ArrowLeft size={13} />
           <span>Exit Simulator</span>
         </Link>
+        <button
+          type="button"
+          onClick={() => {
+            setTempApiKeyInput(geminiApiKey);
+            setShowApiKeyModal(true);
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white transition-colors cursor-pointer"
+        >
+          <Key size={13} className={geminiApiKey ? 'text-emerald-400' : 'text-amber-400'} />
+          <span>{geminiApiKey ? 'API Key Configured' : 'Set Gemini Key'}</span>
+        </button>
       </div>
 
       {/* Realistic Mobile Device Frame */}
       <div className="w-full max-w-[390px] h-[820px] max-h-[94vh] bg-zinc-950 border-4 border-zinc-800/80 rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col justify-between p-6">
         {/* Dynamic Island / Speaker notch */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-full flex items-center justify-end px-3 gap-1.5 z-30 border border-zinc-800/50">
-          <span className="w-2.5 h-2.5 rounded-full bg-zinc-900 border border-zinc-800" />
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isListening ? 'bg-emerald-400 animate-pulse' : 'bg-emerald-500/60'
-            }`}
-          />
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-36 h-6 bg-black rounded-full flex items-center justify-between px-3 gap-1 z-30 border border-zinc-800/50">
+          <span className="w-2 h-2 rounded-full bg-zinc-900 border border-zinc-800" />
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                connectionStatus === 'connected'
+                  ? 'bg-emerald-400 animate-pulse'
+                  : connectionStatus === 'connecting'
+                  ? 'bg-amber-400 animate-ping'
+                  : 'bg-zinc-600'
+              }`}
+            />
+            <span className="text-[9px] font-mono font-medium text-zinc-400 tracking-tight">
+              {connectionStatus === 'connected' ? 'Gemini 24kHz' : 'Resonology'}
+            </span>
+          </div>
         </div>
 
         {/* ----------------- STATE 1: STANDBY ----------------- */}
         {callState === 'standby' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6 pt-8">
+          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-5 pt-8">
             <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400 shadow-inner">
               <Radio size={36} className="animate-pulse" />
             </div>
@@ -808,7 +584,7 @@ export const PhoneSimulatorPage: React.FC = () => {
                 Phone Client Active
               </h2>
               <p className="text-xs text-zinc-400 max-w-[240px] mx-auto leading-relaxed">
-                Listening for outbound call dispatch from your laptop or leads dashboard...
+                Direct Gemini Multimodal Live Engine connected. Listening for inbound calls...
               </p>
             </div>
 
@@ -822,20 +598,28 @@ export const PhoneSimulatorPage: React.FC = () => {
                 <span className="text-emerald-400">{callData.leadName}</span>
               </div>
               <div className="flex items-center justify-between text-zinc-300">
-                <span>Speech Pipeline:</span>
-                <span className="text-zinc-200">Continuous Mic STT + Neural TTS</span>
+                <span>Engine:</span>
+                <span className="text-emerald-300 font-semibold">Gemini 2.0 Flash Live</span>
               </div>
-              {activeVoiceName && (
-                <div className="flex items-center justify-between text-zinc-300 pt-1 border-t border-zinc-800/50">
-                  <span>Active Voice:</span>
-                  <span className="text-zinc-400 truncate max-w-[170px]" title={activeVoiceName}>
-                    {activeVoiceName.replace(/(Microsoft|Google|Desktop|Online|Natural)/gi, '').trim() || activeVoiceName}
+              <div className="flex items-center justify-between text-zinc-300">
+                <span>Voice Persona:</span>
+                <span className="text-purple-400 font-semibold">{geminiVoice} (DeepMind 24kHz)</span>
+              </div>
+              <div className="flex items-center justify-between text-zinc-300 pt-1 border-t border-zinc-800/60">
+                <span>AI Studio Key:</span>
+                {geminiApiKey ? (
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={11} /> Connected
                   </span>
-                </div>
-              )}
+                ) : (
+                  <span className="text-amber-400 font-bold flex items-center gap-1">
+                    <AlertCircle size={11} /> Required
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="w-full pt-4 border-t border-zinc-900 space-y-2">
+            <div className="w-full pt-3 border-t border-zinc-900 space-y-2">
               <button
                 type="button"
                 onClick={triggerTestCall}
@@ -851,7 +635,7 @@ export const PhoneSimulatorPage: React.FC = () => {
           </div>
         )}
 
-        {/* ----------------- STATE 2: RINGING (Authentic incoming call screen) ----------------- */}
+        {/* ----------------- STATE 2: RINGING ----------------- */}
         {callState === 'ringing' && (
           <div className="flex-1 flex flex-col justify-between py-10 items-center text-center animate-fade-in">
             {/* Top caller info */}
@@ -879,7 +663,7 @@ export const PhoneSimulatorPage: React.FC = () => {
 
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 font-mono">
                 <Sparkles size={12} className="text-emerald-400" />
-                <span>HD Audio Stream Connected</span>
+                <span>Gemini Live Neural Audio Ready</span>
               </div>
             </div>
 
@@ -914,7 +698,7 @@ export const PhoneSimulatorPage: React.FC = () => {
           </div>
         )}
 
-        {/* ----------------- STATE 3: CONNECTED (Live Conversational Dialogue) ----------------- */}
+        {/* ----------------- STATE 3: CONNECTED ----------------- */}
         {callState === 'connected' && (
           <div className="flex-1 flex flex-col justify-between py-4 items-center text-center animate-fade-in overflow-hidden">
             {/* Top caller banner */}
@@ -927,12 +711,24 @@ export const PhoneSimulatorPage: React.FC = () => {
               </div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 font-mono">
                 <ShieldCheck size={11} />
-                <span>WebRTC Dual-Audio &bull; Sub-300ms</span>
+                <span>Gemini Live &bull; Sub-400ms &bull; 24kHz</span>
               </div>
             </div>
 
+            {/* Error banner if connection dropped */}
+            {connectionStatus === 'error' && (
+              <div className="w-full p-2 rounded-xl bg-red-950/60 border border-red-800 text-[11px] text-red-200 shrink-0">
+                ⚠️ {connectionErrorMsg || 'Connection error. Check Google API Key.'}
+              </div>
+            )}
+
             {/* Dialogue Bubble Feed */}
-            <div className="w-full flex-1 overflow-y-auto px-2 py-3 space-y-2.5 my-2 max-h-[290px]">
+            <div className="w-full flex-1 overflow-y-auto px-2 py-3 space-y-2.5 my-2 max-h-[300px]">
+              {transcript.length === 0 && (
+                <div className="text-center py-8 text-zinc-500 text-xs italic">
+                  Connecting Gemini Live voice stream... Speak freely into your phone.
+                </div>
+              )}
               {transcript.map((msg, idx) => (
                 <div
                   key={idx}
@@ -954,111 +750,43 @@ export const PhoneSimulatorPage: React.FC = () => {
                   </div>
                 </div>
               ))}
-
-              {/* Real-Time Live Microphone STT Speech Bubble */}
-              {interimSpokenText && (
-                <div className="flex flex-col items-end text-right animate-pulse">
-                  <span className="text-[10px] text-emerald-400 font-mono mb-0.5 px-1 flex items-center gap-1">
-                    <Mic size={10} className="animate-spin" />
-                    <span>Speaking...</span>
-                  </span>
-                  <div className="max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 italic">
-                    "{interimSpokenText}"
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Quick Interactive Response Options & STT Status */}
+            {/* Quick Interactive Response Options & Live Speech Feedback */}
             <div className="w-full shrink-0 space-y-2">
               <div className="p-2.5 rounded-2xl bg-zinc-900/90 border border-zinc-800/80 text-left space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
                     Speak into mic (or tap below):
                   </span>
-                  {isListening ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                      Mic Live
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-zinc-500 font-mono">Mic Paused</span>
-                  )}
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    Live 16kHz PCM
+                  </span>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  {dialogueTurn === 1 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleProspectReply('Haan boliye Anay ji, kis baare mein call kiya aapne?')}
-                        className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
-                      >
-                        🗣️ "Haan boliye, kis baare mein call kiya?"
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleProspectReply('Thoda busy hoon abhi, quick batayein kya offer hai.')}
-                        className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
-                      >
-                        🗣️ "Thoda busy hoon, jaldi bataiye."
-                      </button>
-                    </>
-                  )}
-
-                  {dialogueTurn === 2 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleProspectReply('Currently I am paying around 13.5% APR on my primary loan.')}
-                        className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
-                      >
-                        🗣️ "Around 13.5% interest chal raha hai abhi."
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleProspectReply('Details mujhe email kar dijiye, will review later.')}
-                        className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
-                      >
-                        🗣️ "Details email kar dijiye."
-                      </button>
-                    </>
-                  )}
-
-                  {dialogueTurn === 3 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleProspectReply('Sure, Thursday 4 PM works fine with me.')}
-                        className="w-full text-left p-2 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/40 text-[11px] text-emerald-200 font-medium transition-colors border border-emerald-500/50 cursor-pointer"
-                      >
-                        🤝 "Sure, Thursday 4 PM works with me."
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleProspectReply('Friday morning would be better for me.')}
-                        className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
-                      >
-                        🤝 "Friday morning suits better."
-                      </button>
-                    </>
-                  )}
-
-                  {dialogueTurn >= 4 && (
-                    <div className="text-center py-1.5 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5">
-                      {persistStatus === 'saving' ? (
-                        <>
-                          <Loader2 size={14} className="animate-spin text-emerald-400" />
-                          <span>Syncing with Supabase CRM...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 size={14} />
-                          <span>Appointment Confirmed on CRM</span>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleQuickChipText('Haan boliye Anay ji, kis baare mein call kiya aapne?')}
+                    className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
+                  >
+                    🗣️ "Haan boliye, kis baare mein call kiya?"
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickChipText('Currently I am paying around 13.5% APR on my car loan.')}
+                    className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
+                  >
+                    🗣️ "Around 13.5% interest chal raha hai abhi."
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickChipText('Sure, Thursday 4 PM works fine with me.')}
+                    className="w-full text-left p-2 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/40 text-[11px] text-emerald-200 font-medium transition-colors border border-emerald-500/50 cursor-pointer"
+                  >
+                    🤝 "Sure, Thursday 4 PM works with me."
+                  </button>
                 </div>
               </div>
 
@@ -1077,7 +805,7 @@ export const PhoneSimulatorPage: React.FC = () => {
               <div className="grid grid-cols-3 gap-2 px-2">
                 <button
                   type="button"
-                  onClick={toggleMute}
+                  onClick={() => setIsMuted(!isMuted)}
                   className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
                     isMuted
                       ? 'bg-red-500/20 border-red-500 text-red-400'
@@ -1114,7 +842,7 @@ export const PhoneSimulatorPage: React.FC = () => {
           </div>
         )}
 
-        {/* ----------------- STATE 4: ENDED (CRM Sync Confirmation) ----------------- */}
+        {/* ----------------- STATE 4: ENDED ----------------- */}
         {callState === 'ended' && (
           <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
@@ -1138,8 +866,8 @@ export const PhoneSimulatorPage: React.FC = () => {
                 <span className="text-emerald-300 font-semibold">meeting_booked</span>
               </div>
               <div className="flex justify-between">
-                <span>Value Prop Delivered:</span>
-                <span className="text-zinc-400 truncate max-w-[160px]">{company}</span>
+                <span>AI Engine:</span>
+                <span className="text-purple-400">Gemini Live (Recorded)</span>
               </div>
               <div className="flex justify-between items-center pt-1 border-t border-zinc-800">
                 <span>CRM Sync:</span>
@@ -1171,6 +899,58 @@ export const PhoneSimulatorPage: React.FC = () => {
         {/* Bottom Home Indicator */}
         <div className="w-32 h-1 bg-zinc-700 rounded-full mx-auto self-center mt-2" />
       </div>
+
+      {/* API Key Configuration Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-zinc-900 border border-zinc-800 p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Key size={18} className="text-emerald-400" />
+              <h3 className="text-sm font-bold text-white">Google AI Studio API Key</h3>
+            </div>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Required for genuine Gemini Multimodal Live speech-to-speech. Paste your Gemini API key below:
+            </p>
+            <input
+              type="password"
+              value={tempApiKeyInput}
+              onChange={(e) => setTempApiKeyInput(e.target.value)}
+              placeholder="AIzaSy..."
+              className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 font-mono"
+            />
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-zinc-400">Select Voice Persona:</label>
+              <select
+                value={geminiVoice}
+                onChange={(e) => setGeminiVoice(e.target.value as any)}
+                className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white focus:outline-none focus:border-emerald-500"
+              >
+                <option value="Aoede">Aoede (Authoritative, Deep, Professional)</option>
+                <option value="Kore">Kore (Calm, Reassuring, Consultative)</option>
+                <option value="Charon">Charon (Deep Male, Confident)</option>
+                <option value="Puck">Puck (Energetic, High-Tempo)</option>
+                <option value="Fenrir">Fenrir (Strong, Direct)</option>
+              </select>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowApiKeyModal(false)}
+                className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => saveApiKey(tempApiKeyInput)}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-black hover:bg-emerald-400"
+              >
+                Save & Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
