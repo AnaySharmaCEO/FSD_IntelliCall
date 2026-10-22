@@ -355,6 +355,30 @@
   9. **Route Integration & Build Verification:**
      - Registered `/leads/:id` route in `App.tsx`.
      - Verified production build via `npm run build` in `frontend/` — passed with **0 errors** (2,277 modules transformed).
+* **Commit Reference:** `7f34952` (`feat(leads): redesign sales pipeline with kanban board, detail page, and ai call scheduling`)
+
+---
+
+### [2026-10-22 07:50:00 +05:30] — Supabase Cloud Database Push & Online Synchronization
+* **Author:** Anay Sharma
+* **Phase:** Database Cloud Synchronization & Grant Fixes
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Schema & Table Grant Fixes Migration (`20261021000001_phase_2_schema_and_grant_fixes.sql`):**
+     - Granted `ALL` privileges on `public.compliance_rules`, `public.phone_numbers`, and `public.call_analyses` to `authenticated` and `service_role`, resolving PostgREST `403 Forbidden` errors.
+     - Added `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO authenticated, service_role`.
+     - Added `first_name` and `last_name` columns to `public.leads` and created `trg_sync_lead_names` trigger to synchronize `name <=> first_name + last_name`.
+     - Added `'pending'` value to `lead_status` enum.
+     - Extended `public.appointments` with `title`, `host_name`, `duration_minutes`, dropped `NOT NULL` on `lead_id`, and added `'confirmed'` to `appointment_status` enum.
+     - Notified PostgREST schema cache to reload (`NOTIFY pgrst, 'reload schema'`).
+  2. **Pipeline Fields Migration (`20261022000001_leads_pipeline_fields.sql`):**
+     - Added `estimated_value`, `next_action`, and `stage_entered_at` to `public.leads` on the live remote database.
+     - Created index `idx_leads_stage_entered_at`.
+  3. **Cloud Synchronization Execution (`supabase db push`):**
+     - Successfully pushed and applied both migrations to the online Supabase project `wdmensuuqsbnxzecqlwz` (South Asia Mumbai).
+     - `supabase migration list` confirms all 10 migrations are fully applied and synchronized between Local and Remote.
+  4. **Edge Function Verification:**
+     - `supabase functions list` confirms all 5 Edge Functions (`handle-call-webhook`, `process-ai-decision`, `handle-appointment-webhook`, `trigger-scheduled-calls`, and `analysis-run`) are live and in `ACTIVE` status.
 
 
 
