@@ -65,23 +65,61 @@ export const Sidebar: React.FC = () => {
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('ic-theme', next);
     setTheme(next);
+    window.dispatchEvent(new Event('theme-change'));
   };
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    const onThemeChange = () => {
+      const stored = localStorage.getItem('ic-theme');
+      if (stored === 'light' || stored === 'dark') {
+        setTheme(stored);
+      }
+    };
+    window.addEventListener('theme-change', onThemeChange);
+    window.addEventListener('storage', onThemeChange);
+    return () => {
+      window.removeEventListener('theme-change', onThemeChange);
+      window.removeEventListener('storage', onThemeChange);
+    };
   }, [theme]);
 
   return (
     <aside
       className={cn(
-        'h-screen flex flex-col bg-[var(--color-bg-surface)] border-r border-[var(--color-border-subtle)] transition-all duration-200 select-none shrink-0 z-20',
-        collapsed ? 'w-16' : 'w-60'
+        'h-screen flex flex-col bg-[var(--color-bg-surface)] border-r border-[var(--color-border-subtle)] transition-[width] duration-200 ease-in-out select-none shrink-0 z-20 relative',
+        collapsed ? 'w-[72px]' : 'w-64'
       )}
     >
+      {/* Rail Toggle Button on Border */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className={cn(
+          'absolute -right-3 top-5 w-6 h-6 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-xs items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-action-primary)] hover:scale-105 z-30 transition-all cursor-pointer',
+          collapsed ? 'flex' : 'hidden md:flex'
+        )}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+      </button>
+
       {/* Brand Header */}
-      <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--color-border-subtle)] shrink-0">
-        <Link to="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--color-brand-blue)] text-white flex items-center justify-center font-bold text-sm shrink-0">
+      <div
+        className={cn(
+          'h-16 flex items-center border-b border-[var(--color-border-subtle)] shrink-0',
+          collapsed ? 'justify-center px-0' : 'justify-between px-4'
+        )}
+      >
+        <Link
+          to="/dashboard"
+          className={cn(
+            'flex items-center gap-3 group',
+            collapsed ? 'justify-center' : 'min-w-0'
+          )}
+          title="IntelliCall Dashboard"
+        >
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs ring-1 ring-white/10 group-hover:scale-105 transition-transform">
             IC
           </div>
           {!collapsed && (
@@ -89,19 +127,23 @@ export const Sidebar: React.FC = () => {
               <span className="font-bold text-[14px] tracking-tight text-[var(--color-text-primary)] truncate">
                 IntelliCall
               </span>
-              <span className="text-[10px] text-[var(--color-text-muted)] truncate">
+              <span className="text-[11px] text-[var(--color-text-muted)] truncate font-medium">
                 {organization?.name || 'Enterprise'}
               </span>
             </div>
           )}
         </Link>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded-[var(--radius-sm)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-        </button>
+
+        {!collapsed && (
+          <button
+            onClick={() => setCollapsed(true)}
+            className="p-1.5 rounded-[var(--radius-sm)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronLeft size={16} />
+          </button>
+        )}
       </div>
 
       {/* Nav List */}
@@ -112,11 +154,11 @@ export const Sidebar: React.FC = () => {
             to={item.to}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2 rounded-[var(--radius-sm)] text-[13px] font-medium transition-colors',
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors',
                 isActive
-                  ? 'bg-[var(--color-action-secondary-bg)] text-[var(--color-action-primary)] font-semibold'
+                  ? 'bg-[var(--color-action-secondary-bg)] text-[var(--color-action-primary)] font-semibold shadow-2xs'
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)]',
-                collapsed ? 'justify-center px-0' : ''
+                collapsed ? 'justify-center px-0 w-10 h-10 mx-auto' : ''
               )
             }
             title={collapsed ? item.label : undefined}
@@ -133,11 +175,24 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Footer Tools */}
-      <div className="p-3 border-t border-[var(--color-border-subtle)] space-y-2 shrink-0">
+      <div className="p-3 border-t border-[var(--color-border-subtle)] space-y-1.5 shrink-0">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className={cn(
+            'flex items-center gap-3 w-full px-3 py-1.5 rounded-lg text-[12px] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer',
+            collapsed ? 'justify-center px-0' : ''
+          )}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <ChevronRight size={15} className="shrink-0" /> : <ChevronLeft size={15} className="shrink-0" />}
+          {!collapsed && <span>Collapse sidebar</span>}
+        </button>
+
         <Link
           to="/"
           className={cn(
-            'flex items-center gap-3 px-3 py-1.5 rounded-[var(--radius-sm)] text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-sunken)] transition-colors',
+            'flex items-center gap-3 px-3 py-1.5 rounded-lg text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-sunken)] transition-colors',
             collapsed ? 'justify-center px-0' : ''
           )}
           title="View Public Landing Page"
@@ -149,7 +204,7 @@ export const Sidebar: React.FC = () => {
         <button
           onClick={toggleTheme}
           className={cn(
-            'flex items-center gap-3 w-full px-3 py-1.5 rounded-[var(--radius-sm)] text-[12px] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer',
+            'flex items-center gap-3 w-full px-3 py-1.5 rounded-lg text-[12px] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer',
             collapsed ? 'justify-center px-0' : ''
           )}
           title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
@@ -168,7 +223,7 @@ export const Sidebar: React.FC = () => {
             toast('Signed out successfully', 'info');
           }}
           className={cn(
-            'flex items-center gap-3 w-full px-3 py-1.5 rounded-[var(--radius-sm)] text-[12px] text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer',
+            'flex items-center gap-3 w-full px-3 py-1.5 rounded-lg text-[12px] text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer',
             collapsed ? 'justify-center px-0' : ''
           )}
           title="Sign out of account"

@@ -27,12 +27,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={selectId}
           className={cn(
-            'h-9 px-3 pr-8 rounded-[var(--radius-sm)] border text-[13px] bg-[var(--color-bg-primary)]',
+            'h-9 px-3 pr-8 rounded-lg border text-[13px] bg-[var(--color-bg-sunken)]/40',
             'text-[var(--color-text-primary)] appearance-none cursor-pointer outline-none',
-            'transition-colors duration-[var(--duration-fast)]',
+            'transition-all duration-[var(--duration-fast)]',
             error
               ? 'border-[var(--color-error)] focus:ring-2 focus:ring-[var(--color-error)]/20'
-              : 'border-[var(--color-border-default)] focus:border-[var(--color-action-primary)] focus:ring-2 focus:ring-[var(--color-action-primary)]/20',
+              : 'border-[var(--color-border-default)] focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] focus:ring-2 focus:ring-[var(--color-action-primary)]/20 shadow-2xs',
             className
           )}
           style={{
