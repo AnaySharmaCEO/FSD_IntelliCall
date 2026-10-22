@@ -36,6 +36,140 @@ function mapAppointmentRecord(row: any): Appointment {
   };
 }
 
+const VALID_LEAD_STATUSES = new Set([
+  'new',
+  'queued',
+  'contacted',
+  'qualified',
+  'not_qualified',
+  'meeting_booked',
+  'meeting_attended',
+  'opportunity',
+  'converted',
+  'stalled',
+]);
+
+const LEAD_STATUS_FALLBACK_MAP: Record<string, string> = {
+  pending: 'new',
+  uncontacted: 'new',
+  qualifying: 'contacted',
+  in_progress: 'contacted',
+  meeting_proposed: 'contacted',
+  callback_requested: 'contacted',
+  disqualified: 'not_qualified',
+  unqualified: 'not_qualified',
+  nurture: 'stalled',
+  do_not_call: 'stalled',
+  dnd: 'stalled',
+  lost: 'stalled',
+};
+
+function normalizeLeadStatus(status?: string, defaultForMissing?: string): string {
+  if (status === undefined || status === null || String(status).trim() === '') {
+    if (defaultForMissing !== undefined) return defaultForMissing;
+    throw new Error('Lead status cannot be empty.');
+  }
+  const trimmed = String(status).trim().toLowerCase();
+  if (VALID_LEAD_STATUSES.has(trimmed)) return trimmed;
+  if (LEAD_STATUS_FALLBACK_MAP[trimmed]) return LEAD_STATUS_FALLBACK_MAP[trimmed];
+
+  throw new Error(
+    `Unsupported lead status: '${status}'. Supported statuses are: ${Array.from(VALID_LEAD_STATUSES).join(', ')}.`
+  );
+}
+
+function mapLeadRecord(row: any): Lead {
+  const rawName = String(row.name || '').trim();
+  const parts = rawName.split(/\s+/);
+  const firstName = row.first_name || (parts.length > 0 && parts[0] ? parts[0] : 'Lead');
+  const lastName = row.last_name || (parts.length > 1 ? parts.slice(1).join(' ') : undefined);
+  const normalizedStatus = normalizeLeadStatus(row.status, 'new');
+
+  return {
+    id: row.id,
+    orgId: row.organization_id || row.orgId,
+    firstName,
+    lastName,
+    name: rawName || [firstName, lastName].filter(Boolean).join(' '),
+    company: row.company || '',
+    title: row.title || '',
+    phone: row.phone || '',
+    email: row.email || undefined,
+    city: row.city || undefined,
+    state: row.state || undefined,
+    country: row.country || 'IN',
+    source: row.source || 'manual',
+    ownerId: row.owner_id || row.ownerId || null,
+    stage: normalizedStatus as any,
+    status: normalizedStatus as any,
+    qualification: row.qualification || 'unknown',
+    languagePref: row.language_pref || row.languagePref || 'auto',
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    customFields: (typeof row.custom_fields === 'object' && row.custom_fields !== null)
+      ? row.custom_fields
+      : (typeof row.customFields === 'object' && row.customFields !== null ? row.customFields : {}),
+    compliance: row.compliance || {
+      dndStatus: 'unknown',
+      consentType: 'none',
+      suppressed: false,
+    },
+    lastCallAt: row.last_call_at || row.lastCallAt,
+    lastOutcome: row.last_outcome || row.lastOutcome,
+    nextFollowUpAt: row.next_follow_up_at || row.nextFollowUpAt,
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt,
+    campaignId: row.campaign_id || row.campaignId,
+    // Database schema properties genuinely needed by UI components
+    confidenceScore: row.confidence_score !== undefined ? Number(row.confidence_score) : undefined,
+    confidenceTier: row.confidence_tier || undefined,
+    notes: row.notes || undefined,
+    lastActivityAt: row.last_activity_at || row.lastActivityAt,
+  } as unknown as Lead;
+}
+
+function mapCampaignRecord(row: any): Campaign {
+  return {
+    id: row.id,
+    orgId: row.organization_id || row.orgId,
+    name: row.name,
+    objective: row.objective || row.strategy || 'direct_qualification',
+    status: row.status || 'draft',
+    agentId: row.agent_id || row.agentId,
+    agentVersion: row.agent_version || row.agentVersion || 'v1',
+    languages: row.languages || ['en-IN'],
+    autoSwitchLanguage: row.auto_switch_language ?? row.autoSwitchLanguage ?? true,
+    criteria: row.criteria || [],
+    rules: {
+      windowStart: row.calling_hours_start || row.rules?.windowStart || '09:00',
+      windowEnd: row.calling_hours_end || row.rules?.windowEnd || '18:00',
+      timezone: row.timezone || row.rules?.timezone || 'Asia/Kolkata',
+      concurrency: Number(row.concurrency_limit || row.rules?.concurrency) || 5,
+      maxAttempts: row.rules?.maxAttempts || 2,
+      retryGapMinutes: row.rules?.retryGapMinutes || 60,
+      budgetCapPaise: row.daily_budget
+        ? Number(row.daily_budget) * 100
+        : (row.rules?.budgetCapPaise || 500000),
+    },
+    metrics: {
+      leadsTargeted: Number(row.leads_targeted || row.metrics?.leadsTargeted) || 0,
+      callsAttempted: Number(row.metrics?.callsAttempted) || 0,
+      callsConnected: Number(row.metrics?.callsConnected) || 0,
+      leadsQualified: Number(row.metrics?.leadsQualified) || 0,
+      appointmentsBooked: Number(row.meetings_booked || row.metrics?.appointmentsBooked) || 0,
+    },
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    launchedAt: row.launched_at || row.launchedAt,
+    // Database fields genuinely needed by UI components
+    strategy: row.strategy || 'direct_qualification',
+    strategyConfig: row.strategy_config || row.strategyConfig || {},
+    confidenceThreshold: row.confidence_threshold !== undefined ? Number(row.confidence_threshold) : 80,
+    daily_budget: row.daily_budget ? Number(row.daily_budget) : undefined,
+    concurrency_limit: row.concurrency_limit ? Number(row.concurrency_limit) : undefined,
+    calling_hours_start: row.calling_hours_start,
+    calling_hours_end: row.calling_hours_end,
+  } as unknown as Campaign;
+}
+
 export class SupabaseApiClient implements ApiClient {
   async listCalls(params?: CallFilterParams): Promise<PaginatedResult<Call>> {
     let query = supabase.from('calls').select('*', { count: 'exact' });
@@ -130,69 +264,187 @@ export class SupabaseApiClient implements ApiClient {
   async listCampaigns(): Promise<Campaign[]> {
     const { data, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
     if (error) throw error;
-    return (data || []) as Campaign[];
+    return (data || []).map(mapCampaignRecord);
   }
 
   async getCampaign(id: string): Promise<Campaign | null> {
     const { data, error } = await supabase.from('campaigns').select('*').eq('id', id).maybeSingle();
     if (error) throw error;
-    return (data as Campaign) || null;
+    return data ? mapCampaignRecord(data) : null;
   }
 
-  private async resolveActiveOrganizationId(): Promise<string> {
+  async createCampaign(campaign: Partial<Campaign>): Promise<Campaign> {
+    const preferredOrg = campaign.orgId || (campaign as any).organization_id;
+    const orgId = await this.resolveActiveOrganizationId(preferredOrg, 'admin');
+
+    const payload: Record<string, any> = {
+      organization_id: orgId,
+      name: campaign.name || 'New Campaign',
+      status: campaign.status || 'draft',
+      daily_budget: (campaign as any).daily_budget ?? (campaign as any).dailyBudget ?? 5000,
+      concurrency_limit: (campaign as any).concurrency_limit ?? (campaign as any).concurrencyLimit ?? 5,
+      calling_hours_start: (campaign as any).calling_hours_start ?? (campaign as any).callingHoursStart ?? '09:00',
+      calling_hours_end: (campaign as any).calling_hours_end ?? (campaign as any).callingHoursEnd ?? '18:00',
+    };
+
+    let agentId = campaign.agent_id || (campaign as any).agentId;
+    if (agentId) {
+      const { data: validAgent, error: agentCheckError } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('id', agentId)
+        .eq('organization_id', orgId)
+        .maybeSingle();
+
+      if (agentCheckError) {
+        throw new Error(`Failed to verify agent: ${agentCheckError.message}`);
+      }
+      if (!validAgent?.id) {
+        throw new Error(`The selected agent (${agentId}) does not belong to organization ${orgId}. Please select an agent from your workspace.`);
+      }
+      payload.agent_id = validAgent.id;
+    } else {
+      // Resolve a valid agent belonging to the selected organization
+      const { data: firstAgent, error: agentQueryError } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('organization_id', orgId)
+        .limit(1)
+        .maybeSingle();
+
+      if (agentQueryError) {
+        throw new Error(`Failed to query organization agents: ${agentQueryError.message}`);
+      }
+      if (!firstAgent?.id) {
+        throw new Error(`No voice agents found for organization ${orgId}. Please configure a voice agent before launching a campaign.`);
+      }
+      payload.agent_id = firstAgent.id;
+    }
+
+    if ((campaign as any).strategy) {
+      payload.strategy = String((campaign as any).strategy);
+    }
+    if ((campaign as any).strategy_config) {
+      payload.strategy_config = (campaign as any).strategy_config;
+    }
+    if ((campaign as any).confidence_threshold !== undefined || (campaign as any).confidenceThreshold !== undefined) {
+      const threshold = (campaign as any).confidence_threshold ?? (campaign as any).confidenceThreshold;
+      if (threshold !== null && threshold !== undefined) {
+        payload.confidence_threshold = Number(threshold);
+      }
+    }
+
+    const { data, error } = await supabase.from('campaigns').insert(payload).select().single();
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied (403): You must have an owner or administrator role in the active organization to create campaigns.');
+      }
+      throw new Error(`Failed to create campaign: ${error.message}`);
+    }
+    return mapCampaignRecord(data);
+  }
+
+  async updateCampaign(id: string, updates: Partial<Campaign>): Promise<Campaign> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
       throw new Error('Authentication required: please sign in to complete this action.');
     }
 
-    const { data: member, error } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', session.user.id)
-      .eq('status', 'active')
-      .limit(1)
+    // 1. Fetch current campaign from database (do NOT trust arbitrary organization ID from client)
+    const { data: currentCampaign, error: campError } = await supabase
+      .from('campaigns')
+      .select('id, organization_id')
+      .eq('id', id)
       .maybeSingle();
 
+    if (campError) {
+      throw new Error(`Failed to verify campaign organization: ${campError.message}`);
+    }
+    if (!currentCampaign?.organization_id) {
+      throw new Error(`Campaign not found or access denied: ${id}`);
+    }
+
+    // 2. Verify authenticated user has admin role in this campaign's organization
+    const { data: membership, error: memberError } = await supabase
+      .from('organization_members')
+      .select('role, status')
+      .eq('user_id', session.user.id)
+      .eq('organization_id', currentCampaign.organization_id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (memberError) {
+      throw new Error(`Failed to verify organization role: ${memberError.message}`);
+    }
+    if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
+      throw new Error('Permission denied (403): You must have an owner or administrator role in the campaign organization to update campaigns.');
+    }
+
+    const dbUpdates: Record<string, any> = {};
+
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+
+    // 3. If updating agent, validate it against the campaign's verified database organization
+    const newAgentId = (updates as any).agent_id || (updates as any).agentId;
+    if (newAgentId) {
+      const { data: validAgent, error: agentError } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('id', newAgentId)
+        .eq('organization_id', currentCampaign.organization_id)
+        .maybeSingle();
+
+      if (agentError) {
+        throw new Error(`Failed to verify agent for campaign: ${agentError.message}`);
+      }
+      if (!validAgent?.id) {
+        throw new Error(`The selected agent (${newAgentId}) does not belong to the campaign's organization.`);
+      }
+      dbUpdates.agent_id = validAgent.id;
+    }
+
+    if ((updates as any).confidence_threshold !== undefined || (updates as any).confidenceThreshold !== undefined) {
+      const val = (updates as any).confidence_threshold ?? (updates as any).confidenceThreshold;
+      if (val !== null && val !== undefined) {
+        dbUpdates.confidence_threshold = Number(val);
+      }
+    }
+    if ((updates as any).strategy !== undefined) {
+      dbUpdates.strategy = String((updates as any).strategy);
+    }
+    if ((updates as any).strategy_config !== undefined || (updates as any).strategyConfig !== undefined) {
+      const conf = (updates as any).strategy_config ?? (updates as any).strategyConfig;
+      if (typeof conf === 'object' && conf !== null) {
+        dbUpdates.strategy_config = conf;
+      }
+    }
+    if ((updates as any).calling_hours_start || (updates as any).callingHoursStart) {
+      dbUpdates.calling_hours_start = (updates as any).calling_hours_start || (updates as any).callingHoursStart;
+    }
+    if ((updates as any).calling_hours_end || (updates as any).callingHoursEnd) {
+      dbUpdates.calling_hours_end = (updates as any).calling_hours_end || (updates as any).callingHoursEnd;
+    }
+    if ((updates as any).daily_budget !== undefined || (updates as any).dailyBudget !== undefined) {
+      dbUpdates.daily_budget = Number((updates as any).daily_budget ?? (updates as any).dailyBudget);
+    }
+    if ((updates as any).concurrency_limit !== undefined || (updates as any).concurrencyLimit !== undefined) {
+      dbUpdates.concurrency_limit = Number((updates as any).concurrency_limit ?? (updates as any).concurrencyLimit);
+    }
+    if ((updates as any).timezone !== undefined) {
+      dbUpdates.timezone = String((updates as any).timezone);
+    }
+
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase.from('campaigns').update(dbUpdates).eq('id', id).select().single();
     if (error) {
-      throw new Error(`Failed to resolve active organization: ${error.message}`);
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied (403): You must have an owner or administrator role in the active organization to update campaigns.');
+      }
+      throw new Error(`Failed to update campaign: ${error.message}`);
     }
-    if (!member?.organization_id) {
-      throw new Error('No active organization workspace found. Please complete workspace setup.');
-    }
-    return member.organization_id;
-  }
-
-  async createCampaign(campaign: Partial<Campaign>): Promise<Campaign> {
-    const orgId = await this.resolveActiveOrganizationId();
-
-    const payload: Record<string, any> = {
-      organization_id: orgId,
-      name: campaign.name,
-      status: campaign.status || 'draft',
-      daily_budget: (campaign as any).daily_budget ?? 5000,
-      concurrency_limit: (campaign as any).concurrency_limit ?? 5,
-      calling_hours_start: (campaign as any).calling_hours_start ?? '09:00',
-      calling_hours_end: (campaign as any).calling_hours_end ?? '18:00',
-    };
-    if (campaign.agent_id || (campaign as any).agentId) {
-      payload.agent_id = campaign.agent_id || (campaign as any).agentId;
-    }
-    if ((campaign as any).strategy) {
-      payload.strategy = (campaign as any).strategy;
-    }
-    if ((campaign as any).confidence_threshold !== undefined) {
-      payload.confidence_threshold = (campaign as any).confidence_threshold;
-    }
-
-    const { data, error } = await supabase.from('campaigns').insert(payload).select().single();
-    if (error) throw error;
-    return data as Campaign;
-  }
-
-  async updateCampaign(id: string, updates: Partial<Campaign>): Promise<Campaign> {
-    const { data, error } = await supabase.from('campaigns').update(updates).eq('id', id).select().single();
-    if (error) throw error;
-    return data as Campaign;
+    return mapCampaignRecord(data);
   }
 
   async listLeads(params?: LeadFilterParams): Promise<PaginatedResult<Lead>> {
@@ -202,7 +454,8 @@ export class SupabaseApiClient implements ApiClient {
       query = query.eq('campaign_id', params.campaignId);
     }
     if (params?.status) {
-      query = query.eq('status', params.status);
+      const dbStatus = normalizeLeadStatus(params.status);
+      query = query.eq('status', dbStatus);
     }
     if (params?.search) {
       query = query.or(`name.ilike.%${params.search}%,phone.ilike.%${params.search}%,email.ilike.%${params.search}%`);
@@ -219,7 +472,7 @@ export class SupabaseApiClient implements ApiClient {
     if (error) throw error;
 
     return {
-      data: (data || []) as Lead[],
+      data: (data || []).map(mapLeadRecord),
       count: count || 0,
       page,
       pageSize,
@@ -229,30 +482,20 @@ export class SupabaseApiClient implements ApiClient {
   async getLead(id: string): Promise<Lead | null> {
     const { data, error } = await supabase.from('leads').select('*').eq('id', id).maybeSingle();
     if (error) throw error;
-    return (data as Lead) || null;
+    return data ? mapLeadRecord(data) : null;
   }
 
   async createLead(lead: Partial<Lead>): Promise<Lead> {
-    const orgId = await this.resolveActiveOrganizationId();
+    const preferredOrg = lead.orgId || (lead as any).organization_id;
+    const orgId = await this.resolveActiveOrganizationId(preferredOrg);
 
     const fullName =
       (lead as any).name ||
       `${(lead as any).first_name || (lead as any).firstName || ''} ${(lead as any).last_name || (lead as any).lastName || ''}`.trim() ||
       'New Lead';
 
-    const VALID_LEAD_STATUSES = new Set([
-      'new',
-      'contacted',
-      'qualified',
-      'not_qualified',
-      'meeting_booked',
-      'meeting_attended',
-      'opportunity',
-      'converted',
-      'stalled',
-    ]);
-    const rawStatus = (lead as any).status;
-    const status = (rawStatus && VALID_LEAD_STATUSES.has(rawStatus)) ? rawStatus : 'new';
+    const rawStatus = (lead as any).status || (lead as any).stage;
+    const status = normalizeLeadStatus(rawStatus, 'new');
 
     const payload: Record<string, unknown> = {
       organization_id: orgId,
@@ -270,14 +513,83 @@ export class SupabaseApiClient implements ApiClient {
     if ((lead as any).source) payload.source = (lead as any).source;
 
     const { data, error } = await supabase.from('leads').insert(payload).select().single();
-    if (error) throw error;
-    return data as Lead;
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied: Your account role does not have permission to add leads to this organization.');
+      }
+      throw new Error(`Failed to create lead: ${error.message}`);
+    }
+    return mapLeadRecord(data);
   }
 
   async updateLead(id: string, updates: Partial<Lead>): Promise<Lead> {
-    const { data, error } = await supabase.from('leads').update(updates).eq('id', id).select().single();
-    if (error) throw error;
-    return data as Lead;
+    const dbUpdates: Record<string, unknown> = {};
+
+    const hasExplicitName = (updates as any).name !== undefined && (updates as any).name !== null;
+    const hasFirstName = (updates as any).first_name !== undefined || (updates as any).firstName !== undefined;
+    const hasLastName = (updates as any).last_name !== undefined || (updates as any).lastName !== undefined;
+
+    if (hasExplicitName) {
+      dbUpdates.name = String((updates as any).name).trim();
+    } else if (hasFirstName || hasLastName) {
+      const newFirst = (updates as any).first_name ?? (updates as any).firstName;
+      const newLast = (updates as any).last_name ?? (updates as any).lastName;
+
+      if (newFirst !== undefined && newLast !== undefined) {
+        dbUpdates.name = `${String(newFirst).trim()} ${String(newLast).trim()}`.trim();
+      } else {
+        // Partial name update: fetch existing lead to safely preserve unchanged name parts
+        const { data: existingLead, error: fetchErr } = await supabase
+          .from('leads')
+          .select('name')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (fetchErr) {
+          throw new Error(`Failed to fetch existing lead name for update: ${fetchErr.message}`);
+        }
+        if (!existingLead) {
+          throw new Error(`Lead not found: ${id}`);
+        }
+
+        const existingRaw = String(existingLead.name || '').trim();
+        const parts = existingRaw.split(/\s+/);
+        const existingFirst = parts[0] || '';
+        const existingLast = parts.slice(1).join(' ');
+
+        const finalFirst = newFirst !== undefined ? String(newFirst).trim() : existingFirst;
+        const finalLast = newLast !== undefined ? String(newLast).trim() : existingLast;
+
+        dbUpdates.name = `${finalFirst} ${finalLast}`.trim() || existingRaw || 'Lead';
+      }
+    }
+
+    if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+    if (updates.email !== undefined) dbUpdates.email = updates.email;
+    if ((updates as any).company !== undefined) dbUpdates.company = (updates as any).company;
+    if ((updates as any).title !== undefined) dbUpdates.title = (updates as any).title;
+    if ((updates as any).notes !== undefined) dbUpdates.notes = (updates as any).notes;
+    if ((updates as any).source !== undefined) dbUpdates.source = (updates as any).source;
+
+    if ((updates as any).campaign_id || (updates as any).campaignId) {
+      dbUpdates.campaign_id = (updates as any).campaign_id || (updates as any).campaignId;
+    }
+
+    const rawStatus = (updates as any).status !== undefined ? (updates as any).status : (updates as any).stage;
+    if (rawStatus !== undefined) {
+      dbUpdates.status = normalizeLeadStatus(rawStatus);
+    }
+
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase.from('leads').update(dbUpdates).eq('id', id).select().single();
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied: Your account role does not have permission to update leads.');
+      }
+      throw new Error(`Failed to update lead: ${error.message}`);
+    }
+    return mapLeadRecord(data);
   }
 
   async listComplianceRules(): Promise<ComplianceRule[]> {
@@ -570,22 +882,11 @@ export class SupabaseApiClient implements ApiClient {
 
   // --- LEADS BULK IMPORT ---
   async createLeadsBulk(leads: Partial<Lead>[]): Promise<{ count: number; leads: Lead[] }> {
-    const orgId = await this.resolveActiveOrganizationId();
+    const preferredOrgId = (leads[0] as any)?.orgId || (leads[0] as any)?.organization_id;
+    const orgId = await this.resolveActiveOrganizationId(preferredOrgId);
     if (!orgId) {
       throw new Error('Active organization workspace required for bulk lead import.');
     }
-
-    const VALID_LEAD_STATUSES = new Set([
-      'new',
-      'contacted',
-      'qualified',
-      'not_qualified',
-      'meeting_booked',
-      'meeting_attended',
-      'opportunity',
-      'converted',
-      'stalled',
-    ]);
 
     // Explicit allowlisted payload - avoids sending unsupported frontend properties to Supabase
     const normalizedLeads = leads.map((l: any) => {
@@ -594,11 +895,11 @@ export class SupabaseApiClient implements ApiClient {
         [l.first_name || l.firstName, l.last_name || l.lastName].filter(Boolean).join(' ') ||
         'Unknown Lead';
 
-      const rawStatus = l.status;
-      const status = (rawStatus && VALID_LEAD_STATUSES.has(rawStatus)) ? rawStatus : 'new';
+      const rawStatus = l.status || l.stage;
+      const status = normalizeLeadStatus(rawStatus, 'new');
 
       const row: Record<string, any> = {
-        organization_id:orgId,
+        organization_id: orgId,
         name,
         company: l.company || '',
         title: l.title || '',
@@ -621,8 +922,13 @@ export class SupabaseApiClient implements ApiClient {
     });
 
     const { data, error } = await supabase.from('leads').insert(normalizedLeads).select();
-    if (error) throw error;
-    return { count: data?.length || 0, leads: (data || []) as Lead[] };
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied: Your account role does not have permission to insert leads in this organization.');
+      }
+      throw error;
+    }
+    return { count: data?.length || 0, leads: (data || []).map(mapLeadRecord) };
   }
 
   // --- ORGANIZATION & TEAM MEMBERS ---
@@ -669,5 +975,71 @@ export class SupabaseApiClient implements ApiClient {
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
+  }
+
+  // --- PRIVATE HELPERS ---
+  private async resolveActiveOrganizationId(
+    preferredOrgId?: string,
+    requiredRole: 'member' | 'admin' = 'member'
+  ): Promise<string> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      throw new Error('Authentication required: please sign in to complete this action.');
+    }
+
+    // 1. If preferred organization ID is provided, verify the authenticated user has active membership and required role
+    if (preferredOrgId) {
+      const { data: member, error: memberError } = await supabase
+        .from('organization_members')
+        .select('organization_id, role, status')
+        .eq('user_id', session.user.id)
+        .eq('organization_id', preferredOrgId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (memberError) {
+        throw new Error(`Failed to verify organization membership: ${memberError.message}`);
+      }
+      if (!member?.organization_id) {
+        throw new Error(`Access denied: You are not an active member of organization ${preferredOrgId}.`);
+      }
+
+      if (requiredRole === 'admin') {
+        const isAdmin = member.role === 'owner' || member.role === 'admin';
+        if (!isAdmin) {
+          throw new Error(
+            `Access denied (403): You must have an owner or administrator role in organization ${preferredOrgId} to perform this action.`
+          );
+        }
+      }
+
+      return member.organization_id;
+    }
+
+    // 2. Query all active organization memberships for the authenticated user
+    const { data: members, error } = await supabase
+      .from('organization_members')
+      .select('organization_id, role, status')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active');
+
+    if (error) {
+      throw new Error(`Failed to resolve active organization: ${error.message}`);
+    }
+    if (!members || members.length === 0) {
+      throw new Error('No active organization workspace found. Please complete workspace setup.');
+    }
+
+    if (requiredRole === 'admin') {
+      const adminMember = members.find((m: any) => m.role === 'owner' || m.role === 'admin');
+      if (!adminMember) {
+        throw new Error('Access denied (403): You must have an owner or administrator role in an organization to perform this action.');
+      }
+      return adminMember.organization_id;
+    }
+
+    // Prioritize organization where user is owner or admin if available, otherwise first active membership
+    const preferredMember = members.find((m: any) => m.role === 'owner' || m.role === 'admin');
+    return (preferredMember || members[0]).organization_id;
   }
 }
