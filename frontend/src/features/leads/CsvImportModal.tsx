@@ -117,6 +117,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ open, onClose, o
         last_name: l.lastName || undefined,
         phone: l.phone,
         email: l.email || undefined,
+        company: l.company || undefined,
         campaign_id: selectedCampaignId || undefined,
         status: 'new' as any,
       }));
