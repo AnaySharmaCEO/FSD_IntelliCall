@@ -64,6 +64,7 @@ export interface ApiClient {
   getCall(id: string): Promise<Call | null>;
   getCallAnalysis(callId: string): Promise<CallAnalysis | null>;
   triggerAnalysis(callId: string): Promise<{ success: boolean; analysisId?: string; error?: string }>;
+  createCall(call: Partial<Call>): Promise<Call>;
 
   // Agents
   listAgents(): Promise<Agent[]>;
@@ -83,6 +84,7 @@ export interface ApiClient {
   getLead(id: string): Promise<Lead | null>;
   createLead(lead: Partial<Lead>): Promise<Lead>;
   updateLead(id: string, updates: Partial<Lead>): Promise<Lead>;
+  deleteLead(id: string): Promise<void>;
 
   // Appointments
   listAppointments(status?: string): Promise<Appointment[]>;

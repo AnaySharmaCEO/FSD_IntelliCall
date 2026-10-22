@@ -13,6 +13,7 @@ import AgentsPage from '../features/agents/AgentsPage';
 import CampaignsPage from '../features/campaigns/CampaignsPage';
 import CampaignWizardPage from '../features/campaigns/CampaignWizardPage';
 import LeadsPage from '../features/leads/LeadsPage';
+import LeadDetailPage from '../features/leads/LeadDetailPage';
 import AppointmentsPage from '../features/appointments/AppointmentsPage';
 import CompliancePage from '../features/compliance/CompliancePage';
 import AnalyticsPage from '../features/analytics/AnalyticsPage';
@@ -43,6 +44,7 @@ export const App: React.FC = () => {
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/campaigns/new" element={<CampaignWizardPage />} />
         <Route path="/leads" element={<LeadsPage />} />
+        <Route path="/leads/:id" element={<LeadDetailPage />} />
         <Route path="/appointments" element={<AppointmentsPage />} />
         <Route path="/compliance" element={<CompliancePage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />

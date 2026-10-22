@@ -124,6 +124,16 @@ function mapLeadRecord(row: any): Lead {
     confidenceTier: row.confidence_tier || undefined,
     notes: row.notes || undefined,
     lastActivityAt: row.last_activity_at || row.lastActivityAt,
+    // Pipeline / Kanban fields
+    estimatedValue: row.estimated_value !== undefined ? Number(row.estimated_value) : 0,
+    nextAction: row.next_action || row.nextAction || undefined,
+    stageEnteredAt: row.stage_entered_at || row.stageEnteredAt || undefined,
+    daysInStage: (() => {
+      const entered = row.stage_entered_at || row.stageEnteredAt;
+      if (!entered) return 0;
+      const ms = Date.now() - new Date(entered).getTime();
+      return Math.floor(ms / (1000 * 60 * 60 * 24));
+    })(),
   } as unknown as Lead;
 }
 
@@ -230,6 +240,64 @@ export class SupabaseApiClient implements ApiClient {
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
+  }
+
+  async createCall(call: Partial<Call>): Promise<Call> {
+    const orgId = await this.resolveActiveOrganizationId(call.orgId || (call as any).organization_id);
+
+    const leadId = call.leadId || (call as any).lead_id;
+    if (!leadId) {
+      throw new Error('A lead must be specified to initiate or schedule a call.');
+    }
+
+    const agentId = call.agentId || (call as any).agent_id;
+    if (!agentId) {
+      throw new Error('An agent must be selected to place a call.');
+    }
+
+    let campaignId = call.campaignId || (call as any).campaign_id;
+    if (!campaignId) {
+      const { data: firstCampaign } = await supabase
+        .from('campaigns')
+        .select('id')
+        .eq('organization_id', orgId)
+        .limit(1)
+        .maybeSingle();
+      campaignId = firstCampaign?.id || null;
+    }
+
+    if (!campaignId) {
+      throw new Error('No campaign found for this organization. Please create or assign a campaign before scheduling calls.');
+    }
+
+    const payload: Record<string, any> = {
+      organization_id: orgId,
+      lead_id: leadId,
+      agent_id: agentId,
+      campaign_id: campaignId,
+      status: (call as any).status || 'scheduled',
+      direction: (call as any).direction || 'outbound',
+    };
+
+    if ((call as any).scheduled_for || (call as any).scheduledFor) {
+      payload.scheduled_for = (call as any).scheduled_for || (call as any).scheduledFor;
+    }
+
+    const { data, error } = await supabase.from('calls').insert(payload).select().single();
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied: Your account role does not have permission to schedule calls.');
+      }
+      throw new Error(`Failed to schedule call: ${error.message}`);
+    }
+
+    // Touch lead's last_activity_at
+    await supabase.from('leads').update({
+      last_activity_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', leadId);
+
+    return data as Call;
   }
 
   async listAgents(): Promise<Agent[]> {
@@ -511,6 +579,13 @@ export class SupabaseApiClient implements ApiClient {
     }
     if ((lead as any).notes) payload.notes = (lead as any).notes;
     if ((lead as any).source) payload.source = (lead as any).source;
+    if ((lead as any).estimated_value !== undefined || (lead as any).estimatedValue !== undefined) {
+      payload.estimated_value = Number((lead as any).estimated_value ?? (lead as any).estimatedValue);
+    }
+    if ((lead as any).next_action !== undefined || (lead as any).nextAction !== undefined) {
+      payload.next_action = (lead as any).next_action || (lead as any).nextAction;
+    }
+    payload.stage_entered_at = new Date().toISOString();
 
     const { data, error } = await supabase.from('leads').insert(payload).select().single();
     if (error) {
@@ -570,6 +645,15 @@ export class SupabaseApiClient implements ApiClient {
     if ((updates as any).title !== undefined) dbUpdates.title = (updates as any).title;
     if ((updates as any).notes !== undefined) dbUpdates.notes = (updates as any).notes;
     if ((updates as any).source !== undefined) dbUpdates.source = (updates as any).source;
+    if ((updates as any).estimated_value !== undefined || (updates as any).estimatedValue !== undefined) {
+      dbUpdates.estimated_value = Number((updates as any).estimated_value ?? (updates as any).estimatedValue);
+    }
+    if ((updates as any).next_action !== undefined || (updates as any).nextAction !== undefined) {
+      dbUpdates.next_action = (updates as any).next_action ?? (updates as any).nextAction;
+    }
+    if ((updates as any).stage_entered_at !== undefined || (updates as any).stageEnteredAt !== undefined) {
+      dbUpdates.stage_entered_at = (updates as any).stage_entered_at ?? (updates as any).stageEnteredAt;
+    }
 
     if ((updates as any).campaign_id || (updates as any).campaignId) {
       dbUpdates.campaign_id = (updates as any).campaign_id || (updates as any).campaignId;
@@ -578,6 +662,9 @@ export class SupabaseApiClient implements ApiClient {
     const rawStatus = (updates as any).status !== undefined ? (updates as any).status : (updates as any).stage;
     if (rawStatus !== undefined) {
       dbUpdates.status = normalizeLeadStatus(rawStatus);
+      if (!dbUpdates.stage_entered_at) {
+        dbUpdates.stage_entered_at = new Date().toISOString();
+      }
     }
 
     dbUpdates.updated_at = new Date().toISOString();
@@ -590,6 +677,16 @@ export class SupabaseApiClient implements ApiClient {
       throw new Error(`Failed to update lead: ${error.message}`);
     }
     return mapLeadRecord(data);
+  }
+
+  async deleteLead(id: string): Promise<void> {
+    const { error } = await supabase.from('leads').delete().eq('id', id);
+    if (error) {
+      if (error.code === '42501' || error.message?.toLowerCase().includes('permission denied')) {
+        throw new Error('Permission denied: Your account role does not have permission to delete leads.');
+      }
+      throw new Error(`Failed to delete lead: ${error.message}`);
+    }
   }
 
   async listComplianceRules(): Promise<ComplianceRule[]> {

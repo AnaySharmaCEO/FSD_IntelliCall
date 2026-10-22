@@ -3,7 +3,7 @@ import type { ApiClient, CallFilterParams, LeadFilterParams } from '../client';
 import { MockApiClient } from '../mock';
 import { SupabaseApiClient } from '../http';
 import { queryKeys } from '../keys';
-import type { Agent, Campaign, Lead, Appointment, ComplianceRule, Organization } from '../../contracts/entities';
+import type { Call, Agent, Campaign, Lead, Appointment, ComplianceRule, Organization } from '../../contracts/entities';
 
 const useMockApi = import.meta.env.VITE_USE_MOCK_API === 'true';
 export const apiClient: ApiClient = useMockApi
@@ -31,6 +31,18 @@ export function useCallAnalysis(callId: string | undefined) {
     queryKey: callId ? queryKeys.calls.analysis(callId) : ['calls', 'analysis', 'null'],
     queryFn: () => (callId ? apiClient.getCallAnalysis(callId) : null),
     enabled: Boolean(callId),
+  });
+}
+
+export function useCreateCall() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (call: Partial<Call>) => apiClient.createCall(call),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.calls.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+    },
   });
 }
 
@@ -172,6 +184,17 @@ export function useUpdateLead() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.leads.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+    },
+  });
+}
+
+export function useDeleteLead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.deleteLead(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
     },
   });
