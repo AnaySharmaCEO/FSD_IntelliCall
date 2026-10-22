@@ -7,21 +7,26 @@ import {
   MicOff,
   Volume2,
   VolumeX,
-  Grid,
   Sparkles,
   User,
   ShieldCheck,
   Radio,
   ArrowLeft,
-  MessageSquare,
   CheckCircle2,
+  CalendarCheck,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../api/hooks';
+import { queryKeys } from '../../api/keys';
 
 type CallState = 'standby' | 'ringing' | 'connected' | 'ended';
 
 interface IncomingCallPayload {
+  callId?: string;
   callerName?: string;
   callerId?: string;
   leadName?: string;
@@ -33,7 +38,14 @@ interface IncomingCallPayload {
   questions?: string[];
 }
 
+const SpeechRecognitionAPI =
+  typeof window !== 'undefined'
+    ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    : null;
+
 export const PhoneSimulatorPage: React.FC = () => {
+  const queryClient = useQueryClient();
+
   const [callState, setCallState] = useState<CallState>('standby');
   const [callData, setCallData] = useState<IncomingCallPayload>({
     callerName: 'FinEdge Capital',
@@ -52,13 +64,23 @@ export const PhoneSimulatorPage: React.FC = () => {
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeaker, setIsSpeaker] = useState(true);
-  const [showKeypad, setShowKeypad] = useState(false);
   const [micAudioLevel, setMicAudioLevel] = useState<number[]>([15, 25, 40, 20, 60, 35, 50, 25]);
 
-  // Conversational Turns
+  // Conversational Turns & Transcripts
   const [dialogueTurn, setDialogueTurn] = useState<number>(1);
   const [transcript, setTranscript] = useState<{ speaker: 'agent' | 'prospect'; text: string }[]>([]);
+  const [interimSpokenText, setInterimSpokenText] = useState<string>('');
+  const [isListening, setIsListening] = useState<boolean>(false);
 
+  // CRM Persistence status
+  const [persistStatus, setPersistStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [savedAppointmentId, setSavedAppointmentId] = useState<string | null>(null);
+
+  // Speech Synthesis state
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [activeVoiceName, setActiveVoiceName] = useState<string>('');
+
+  // Refs for audio, timers, and STT
   const audioCtxRef = useRef<AudioContext | null>(null);
   const ringtoneTimerRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<number | null>(null);
@@ -66,33 +88,298 @@ export const PhoneSimulatorPage: React.FC = () => {
   const micStreamRef = useRef<MediaStream | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
+  const recognitionRef = useRef<any>(null);
+  const silenceTimerRef = useRef<number | null>(null);
+  const isAgentSpeakingRef = useRef<boolean>(false);
+  const callStateRef = useRef<CallState>('standby');
+  const dialogueTurnRef = useRef<number>(1);
+  const isMutedRef = useRef<boolean>(false);
+  const callDurationRef = useRef<number>(0);
+  const transcriptRef = useRef<{ speaker: 'agent' | 'prospect'; text: string }[]>([]);
+
+  // Keep refs in sync with state for callbacks
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
+
+  useEffect(() => {
+    dialogueTurnRef.current = dialogueTurn;
+  }, [dialogueTurn]);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  useEffect(() => {
+    callDurationRef.current = callDuration;
+  }, [callDuration]);
+
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
+
+  // Lead and Company resolved props
   const leadFirstName = (callData.leadName || 'Vikram').split(' ')[0];
   const company = callData.companyName || callData.callerName || 'FinEdge Capital';
   const motto = callData.motto || 'reducing vehicle financing rates from 14% down to 8.4%';
   const offer = callData.offer || 'a complimentary 5-minute portfolio interest audit this Thursday';
   const q1 = callData.questions?.[0] || 'What interest rate are you currently paying on your primary vehicle loan?';
 
-  // Speech Synthesis
-  const speakVoice = (text: string) => {
+  // Fallback: Populate default leadId from Supabase if not present
+  useEffect(() => {
+    supabase
+      .from('leads')
+      .select('id, name, company')
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && !callData.leadId) {
+          setCallData((prev) => ({
+            ...prev,
+            leadId: prev.leadId || data.id,
+            leadName: prev.leadId ? prev.leadName : (data.name || prev.leadName),
+            companyName: prev.leadId ? prev.companyName : (data.company || prev.companyName),
+          }));
+        }
+      });
+  }, []);
+
+  // -------------------------------------------------------------
+  // Voice Selection & Humanization Engine (Speech Synthesis)
+  // -------------------------------------------------------------
+  const pickBestVoice = (availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
+    if (!availableVoices || availableVoices.length === 0) return null;
+
+    // 1. Natural / Online Indian English & Hindi Neural Voices
+    const neuralIndian = availableVoices.find(
+      (v) =>
+        (v.name.includes('Neerja') ||
+          v.name.includes('Swara') ||
+          v.name.includes('Prabhat') ||
+          v.name.includes('हिन्दी') ||
+          v.name.includes('Hindi') ||
+          (v.lang.toLowerCase().includes('in') && v.name.includes('Natural')) ||
+          (v.lang.toLowerCase().includes('in') && v.name.includes('Online')))
+    );
+    if (neuralIndian) return neuralIndian;
+
+    // 2. Any Indian English/Hindi voice
+    const anyIndian = availableVoices.find(
+      (v) =>
+        v.lang.toLowerCase().includes('en-in') ||
+        v.lang.toLowerCase().includes('hi-in') ||
+        v.name.toLowerCase().includes('india')
+    );
+    if (anyIndian) return anyIndian;
+
+    // 3. Natural / Online English Neural voices (e.g. Edge Natural Jenny / Guy / Aria)
+    const naturalEnglish = availableVoices.find(
+      (v) =>
+        (v.name.includes('Natural') || v.name.includes('Online')) &&
+        v.lang.toLowerCase().startsWith('en')
+    );
+    if (naturalEnglish) return naturalEnglish;
+
+    // 4. Clean standard Google / Apple / Microsoft English voices
+    const goodEnglish = availableVoices.find(
+      (v) =>
+        (v.name.includes('Google') ||
+          v.name.includes('Samantha') ||
+          v.name.includes('Daniel') ||
+          v.name.includes('Jenny')) &&
+        v.lang.toLowerCase().startsWith('en')
+    );
+    if (goodEnglish) return goodEnglish;
+
+    return (
+      availableVoices.find((v) => v.lang.toLowerCase().startsWith('en')) ||
+      availableVoices[0] ||
+      null
+    );
+  };
+
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+
+    const updateVoices = () => {
+      const available = window.speechSynthesis.getVoices();
+      if (available && available.length > 0) {
+        setVoices(available);
+        const best = pickBestVoice(available);
+        if (best) {
+          setActiveVoiceName(best.name);
+        }
+      }
+    };
+
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
+  const speakVoice = (text: string, turn: number = 1) => {
     if (!('speechSynthesis' in window)) return;
     try {
       window.speechSynthesis.cancel();
+      isAgentSpeakingRef.current = true;
+
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(
-        (v) =>
-          v.lang.toLowerCase().includes('in') ||
-          v.lang.toLowerCase().includes('hi') ||
-          v.name.toLowerCase().includes('india')
-      ) || voices[0];
-      if (preferred) utterance.voice = preferred;
+
+      // Psychological voice modulation per conversational turn:
+      if (turn === 1) {
+        // High-energy, warm, polite opening
+        utterance.rate = 1.02;
+        utterance.pitch = 1.05;
+      } else if (turn === 2) {
+        // Analytical diagnostic inquiry
+        utterance.rate = 1.04;
+        utterance.pitch = 1.02;
+      } else if (turn === 3) {
+        // Chris Voss "No"-oriented close (calm, authoritative downward inflection)
+        utterance.rate = 0.96;
+        utterance.pitch = 0.94;
+      } else {
+        // Confident, decisive CRM confirmation
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+      }
+
+      const currentVoices = window.speechSynthesis.getVoices();
+      const best = pickBestVoice(currentVoices.length > 0 ? currentVoices : voices);
+      if (best) {
+        utterance.voice = best;
+        setActiveVoiceName(best.name);
+      }
+
+      utterance.onend = () => {
+        isAgentSpeakingRef.current = false;
+      };
+
+      utterance.onerror = () => {
+        isAgentSpeakingRef.current = false;
+      };
+
       window.speechSynthesis.speak(utterance);
-    } catch {}
+    } catch {
+      isAgentSpeakingRef.current = false;
+    }
   };
 
-  // 1. Web Audio API synthesized phone ring chime
+  // -------------------------------------------------------------
+  // Speech-to-Text (STT) Microphone Recognition Pipeline
+  // -------------------------------------------------------------
+  const startSTT = () => {
+    if (!SpeechRecognitionAPI) {
+      console.warn('SpeechRecognition API is not supported in this browser environment.');
+      return;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
+
+    try {
+      const recognition = new SpeechRecognitionAPI();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-IN'; // Indian English / Hinglish
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        // Discard microphone audio if agent is currently speaking over device speakers
+        if (isAgentSpeakingRef.current) {
+          return;
+        }
+
+        let interim = '';
+        let final = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            final += item[0].transcript;
+          } else {
+            interim += item[0].transcript;
+          }
+        }
+
+        if (interim) {
+          setInterimSpokenText(interim);
+
+          // Reset silence timer on interim speech
+          if (silenceTimerRef.current) {
+            window.clearTimeout(silenceTimerRef.current);
+          }
+          silenceTimerRef.current = window.setTimeout(() => {
+            if (interim.trim().length > 1 && !isAgentSpeakingRef.current) {
+              setInterimSpokenText('');
+              handleProspectReply(interim.trim());
+            }
+          }, 1100);
+        }
+
+        if (final.trim()) {
+          if (silenceTimerRef.current) {
+            window.clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
+          setInterimSpokenText('');
+          handleProspectReply(final.trim());
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        if (event.error === 'no-speech') return;
+        console.warn('Speech recognition notice:', event.error);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        // Automatically restart if call is still live and not muted
+        if (callStateRef.current === 'connected' && !isMutedRef.current) {
+          try {
+            recognition.start();
+          } catch {}
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn('Could not initialize SpeechRecognition:', err);
+    }
+  };
+
+  const stopSTT = () => {
+    if (silenceTimerRef.current) {
+      window.clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    setInterimSpokenText('');
+  };
+
+  // -------------------------------------------------------------
+  // Web Audio Ringtone Generator & Mic Stream Analyser
+  // -------------------------------------------------------------
   const playRingtone = () => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -192,7 +479,9 @@ export const PhoneSimulatorPage: React.FC = () => {
           if (!analyserRef.current) return;
           const data = new Uint8Array(analyserRef.current.frequencyBinCount);
           analyserRef.current.getByteFrequencyData(data);
-          const sliced = Array.from(data.slice(0, 8)).map((v) => Math.max(12, Math.round((v / 255) * 80)));
+          const sliced = Array.from(data.slice(0, 8)).map((v) =>
+            Math.max(12, Math.round((v / 255) * 80))
+          );
           setMicAudioLevel(sliced);
           requestAnimationFrame(updateLevels);
         };
@@ -208,7 +497,9 @@ export const PhoneSimulatorPage: React.FC = () => {
     }
   };
 
-  // Supabase Realtime Listener
+  // -------------------------------------------------------------
+  // Supabase Realtime Listener for Incoming Outbound Calls
+  // -------------------------------------------------------------
   useEffect(() => {
     const channel = supabase.channel('phone-simulator', {
       config: { broadcast: { self: true } },
@@ -217,6 +508,7 @@ export const PhoneSimulatorPage: React.FC = () => {
     channel
       .on('broadcast', { event: 'incoming_call' }, ({ payload }) => {
         setCallData({
+          callId: payload?.callId,
           callerName: payload?.callerName || payload?.companyName || 'FinEdge Capital',
           callerId: payload?.callerId || '+91 98765 43210',
           leadName: payload?.leadName || 'Vikram Malhotra',
@@ -229,6 +521,8 @@ export const PhoneSimulatorPage: React.FC = () => {
         });
         setTranscript([]);
         setDialogueTurn(1);
+        setPersistStatus('idle');
+        setSavedAppointmentId(null);
         setCallState('ringing');
         playRingtone();
       })
@@ -239,6 +533,7 @@ export const PhoneSimulatorPage: React.FC = () => {
       stopRingtone();
       releaseWakeLock();
       stopMicStream();
+      stopSTT();
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
@@ -260,57 +555,179 @@ export const PhoneSimulatorPage: React.FC = () => {
     }
   }, [callState]);
 
+  // -------------------------------------------------------------
+  // CRM Database Persistence Engine
+  // -------------------------------------------------------------
+  const persistAppointmentToCRM = async () => {
+    setPersistStatus('saving');
+    try {
+      let targetLeadId = callData.leadId;
+      let targetOrgId: string | null = null;
+
+      if (!targetLeadId) {
+        const { data: fallbackLead } = await supabase
+          .from('leads')
+          .select('id, organization_id, name, company')
+          .limit(1)
+          .maybeSingle();
+
+        if (fallbackLead) {
+          targetLeadId = fallbackLead.id;
+          targetOrgId = fallbackLead.organization_id;
+        }
+      } else {
+        const { data: leadData } = await supabase
+          .from('leads')
+          .select('organization_id')
+          .eq('id', targetLeadId)
+          .maybeSingle();
+        targetOrgId = leadData?.organization_id || null;
+      }
+
+      if (!targetOrgId) {
+        const org = await apiClient.getOrganization().catch(() => null);
+        targetOrgId = org?.id || null;
+      }
+
+      // Compute appointment time: Upcoming Thursday at 4:00 PM
+      const apptDate = new Date();
+      const currentDay = apptDate.getDay();
+      const daysUntilThursday = (4 - currentDay + 7) % 7 || 7;
+      apptDate.setDate(apptDate.getDate() + daysUntilThursday);
+      apptDate.setHours(16, 0, 0, 0);
+
+      if (targetOrgId && targetLeadId) {
+        // 1. Insert row into appointments table
+        const { data: createdAppt, error: apptError } = await supabase
+          .from('appointments')
+          .insert({
+            organization_id: targetOrgId,
+            lead_id: targetLeadId,
+            call_id: callData.callId || null,
+            scheduled_for: apptDate.toISOString(),
+            status: 'scheduled',
+            booking_source: 'ai_booked',
+            notes: `Locked via Resonology AI Voice: ${offer} (${company})`,
+          })
+          .select()
+          .maybeSingle();
+
+        if (apptError) {
+          console.error('Supabase appointment insertion error:', apptError);
+        } else {
+          setSavedAppointmentId(createdAppt?.id || 'CONFIRMED');
+        }
+
+        // 2. Update Lead status to 'meeting_booked'
+        await supabase
+          .from('leads')
+          .update({
+            status: 'meeting_booked',
+            stage_entered_at: new Date().toISOString(),
+            next_action: `Portfolio audit confirmed for Thursday 4:00 PM`,
+            last_activity_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', targetLeadId);
+
+        // 3. Update Call row if Call ID exists
+        if (callData.callId) {
+          const transcriptText = transcriptRef.current
+            .map((t) => `${t.speaker.toUpperCase()}: ${t.text}`)
+            .join('\n');
+
+          await supabase
+            .from('calls')
+            .update({
+              status: 'completed',
+              duration_seconds: callDurationRef.current,
+              ended_at: new Date().toISOString(),
+              transcript: transcriptText,
+            })
+            .eq('id', callData.callId);
+        }
+
+        // 4. Invalidate TanStack Query caches so all dashboard/leads/appointments views update instantly
+        queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.calls.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+
+        setPersistStatus('saved');
+      } else {
+        setPersistStatus('error');
+      }
+    } catch (err) {
+      console.error('Failed to persist appointment to Supabase:', err);
+      setPersistStatus('error');
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Call Lifecycle & Conversational Turn Transitions
+  // -------------------------------------------------------------
   const handleAnswerCall = async () => {
     stopRingtone();
     setCallState('connected');
+    setPersistStatus('idle');
+    setSavedAppointmentId(null);
     await requestWakeLock();
     await setupMicStream();
+    startSTT();
 
     // Turn 1: Professional Non-Slimeball Opening (Respectful Permission)
     const turn1Text = `Namaste ${leadFirstName} ji, Anay bol raha hoon ${company} se. Ek quick minute baat ho sakti hai aapse?`;
     setTranscript([{ speaker: 'agent', text: turn1Text }]);
     setDialogueTurn(1);
     setTimeout(() => {
-      speakVoice(turn1Text);
+      speakVoice(turn1Text, 1);
     }, 600);
   };
 
   const handleProspectReply = (prospectText: string) => {
-    const newTranscript = [...transcript, { speaker: 'prospect' as const, text: prospectText }];
+    if (!prospectText || !prospectText.trim()) return;
+
+    const currentTurn = dialogueTurnRef.current;
+    const newTranscript = [...transcriptRef.current, { speaker: 'prospect' as const, text: prospectText }];
     setTranscript(newTranscript);
 
-    if (dialogueTurn === 1) {
-      // Advance to Turn 2: Campaign Hook & Diagnostic Discovery Question
+    if (currentTurn === 1) {
+      // Turn 2: Strategic Value Hook & Diagnostic Discovery Question
       const turn2Text = `Actually ${company} mein hum ${motto} par focus karte hain. Wanted to ask—${q1}?`;
       setTimeout(() => {
         setTranscript((prev) => [...prev, { speaker: 'agent', text: turn2Text }]);
         setDialogueTurn(2);
-        speakVoice(turn2Text);
+        speakVoice(turn2Text, 2);
       }, 500);
-    } else if (dialogueTurn === 2) {
-      // Advance to Turn 3: Chris Voss "No"-Oriented Close
+    } else if (currentTurn === 2) {
+      // Turn 3: Chris Voss "No"-Oriented Close
       const turn3Text = `Right. Would you be totally opposed to ${offer} with our team this Thursday?`;
       setTimeout(() => {
         setTranscript((prev) => [...prev, { speaker: 'agent', text: turn3Text }]);
         setDialogueTurn(3);
-        speakVoice(turn3Text);
+        speakVoice(turn3Text, 3);
       }, 500);
-    } else if (dialogueTurn === 3) {
-      // Advance to Turn 4: Lock CRM Appointment & Graceful Close
-      const turn4Text = `Perfect, main invite bhej raha hoon calendar par. Thank you ${leadFirstName} ji, talk to you Thursday.`;
+    } else if (currentTurn === 3) {
+      // Turn 4: Locked CRM Appointment & Authoritative Close
+      const turn4Text = `Perfect, Thursday 4 PM lock kar diya hai aapke calendar par. Thank you ${leadFirstName} ji, talk to you Thursday.`;
       setTimeout(() => {
         setTranscript((prev) => [...prev, { speaker: 'agent', text: turn4Text }]);
         setDialogueTurn(4);
-        speakVoice(turn4Text);
+        speakVoice(turn4Text, 4);
+
+        // Commit immediately to Supabase
+        persistAppointmentToCRM();
+
         setTimeout(() => {
           handleEndCall();
-        }, 3500);
+        }, 4000);
       }, 500);
     }
   };
 
   const handleDeclineCall = () => {
     stopRingtone();
+    stopSTT();
     setCallState('standby');
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   };
@@ -319,6 +736,7 @@ export const PhoneSimulatorPage: React.FC = () => {
     stopRingtone();
     releaseWakeLock();
     stopMicStream();
+    stopSTT();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setCallState('ended');
     setTimeout(() => {
@@ -331,8 +749,20 @@ export const PhoneSimulatorPage: React.FC = () => {
   const triggerTestCall = () => {
     setTranscript([]);
     setDialogueTurn(1);
+    setPersistStatus('idle');
+    setSavedAppointmentId(null);
     setCallState('ringing');
     playRingtone();
+  };
+
+  const toggleMute = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (nextMuted) {
+      stopSTT();
+    } else {
+      startSTT();
+    }
   };
 
   const formatTimer = (secs: number) => {
@@ -357,9 +787,13 @@ export const PhoneSimulatorPage: React.FC = () => {
       {/* Realistic Mobile Device Frame */}
       <div className="w-full max-w-[390px] h-[820px] max-h-[94vh] bg-zinc-950 border-4 border-zinc-800/80 rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col justify-between p-6">
         {/* Dynamic Island / Speaker notch */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-full flex items-center justify-end px-3 gap-1 z-30 border border-zinc-800/50">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-full flex items-center justify-end px-3 gap-1.5 z-30 border border-zinc-800/50">
           <span className="w-2.5 h-2.5 rounded-full bg-zinc-900 border border-zinc-800" />
-          <span className="w-2 h-2 rounded-full bg-emerald-500/60 animate-pulse" />
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isListening ? 'bg-emerald-400 animate-pulse' : 'bg-emerald-500/60'
+            }`}
+          />
         </div>
 
         {/* ----------------- STATE 1: STANDBY ----------------- */}
@@ -374,7 +808,7 @@ export const PhoneSimulatorPage: React.FC = () => {
                 Phone Client Active
               </h2>
               <p className="text-xs text-zinc-400 max-w-[240px] mx-auto leading-relaxed">
-                Listening on local channel for outbound call dispatch from your laptop...
+                Listening for outbound call dispatch from your laptop or leads dashboard...
               </p>
             </div>
 
@@ -384,13 +818,21 @@ export const PhoneSimulatorPage: React.FC = () => {
                 <span className="text-blue-400 font-semibold">{company}</span>
               </div>
               <div className="flex items-center justify-between text-zinc-300">
-                <span>Prospect:</span>
+                <span>Prospect Target:</span>
                 <span className="text-emerald-400">{callData.leadName}</span>
               </div>
               <div className="flex items-center justify-between text-zinc-300">
                 <span>Speech Pipeline:</span>
-                <span>Dual-Audio WebRTC</span>
+                <span className="text-zinc-200">Continuous Mic STT + Neural TTS</span>
               </div>
+              {activeVoiceName && (
+                <div className="flex items-center justify-between text-zinc-300 pt-1 border-t border-zinc-800/50">
+                  <span>Active Voice:</span>
+                  <span className="text-zinc-400 truncate max-w-[170px]" title={activeVoiceName}>
+                    {activeVoiceName.replace(/(Microsoft|Google|Desktop|Online|Natural)/gi, '').trim() || activeVoiceName}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="w-full pt-4 border-t border-zinc-900 space-y-2">
@@ -403,7 +845,7 @@ export const PhoneSimulatorPage: React.FC = () => {
                 <span>Simulate Incoming Call Now</span>
               </button>
               <p className="text-[10px] text-zinc-500 text-center">
-                Tap above to test locally, or click "Ring Phone Client" on your dashboard.
+                Tap above to test locally, or dispatch from your Leads dashboard modal.
               </p>
             </div>
           </div>
@@ -485,12 +927,12 @@ export const PhoneSimulatorPage: React.FC = () => {
               </div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 font-mono">
                 <ShieldCheck size={11} />
-                <span>WebRTC 24kHz HD &bull; Sub-300ms</span>
+                <span>WebRTC Dual-Audio &bull; Sub-300ms</span>
               </div>
             </div>
 
             {/* Dialogue Bubble Feed */}
-            <div className="w-full flex-1 overflow-y-auto px-2 py-3 space-y-2.5 my-2 max-h-[300px]">
+            <div className="w-full flex-1 overflow-y-auto px-2 py-3 space-y-2.5 my-2 max-h-[290px]">
               {transcript.map((msg, idx) => (
                 <div
                   key={idx}
@@ -512,14 +954,38 @@ export const PhoneSimulatorPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+
+              {/* Real-Time Live Microphone STT Speech Bubble */}
+              {interimSpokenText && (
+                <div className="flex flex-col items-end text-right animate-pulse">
+                  <span className="text-[10px] text-emerald-400 font-mono mb-0.5 px-1 flex items-center gap-1">
+                    <Mic size={10} className="animate-spin" />
+                    <span>Speaking...</span>
+                  </span>
+                  <div className="max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 italic">
+                    "{interimSpokenText}"
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Quick Interactive Response Options (Simulate live conversational turns) */}
+            {/* Quick Interactive Response Options & STT Status */}
             <div className="w-full shrink-0 space-y-2">
               <div className="p-2.5 rounded-2xl bg-zinc-900/90 border border-zinc-800/80 text-left space-y-1.5">
-                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
-                  Tap to Respond (or speak into mic):
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                    Speak into mic (or tap below):
+                  </span>
+                  {isListening ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      Mic Live
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-zinc-500 font-mono">Mic Paused</span>
+                  )}
+                </div>
+
                 <div className="flex flex-col gap-1.5">
                   {dialogueTurn === 1 && (
                     <>
@@ -544,7 +1010,7 @@ export const PhoneSimulatorPage: React.FC = () => {
                     <>
                       <button
                         type="button"
-                        onClick={() => handleProspectReply('Currently I am paying around 13.5% APR on my car loan.')}
+                        onClick={() => handleProspectReply('Currently I am paying around 13.5% APR on my primary loan.')}
                         className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
                       >
                         🗣️ "Around 13.5% interest chal raha hai abhi."
@@ -579,9 +1045,18 @@ export const PhoneSimulatorPage: React.FC = () => {
                   )}
 
                   {dialogueTurn >= 4 && (
-                    <div className="text-center py-1 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5">
-                      <CheckCircle2 size={14} />
-                      <span>Appointment Confirmed on CRM</span>
+                    <div className="text-center py-1.5 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5">
+                      {persistStatus === 'saving' ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin text-emerald-400" />
+                          <span>Syncing with Supabase CRM...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={14} />
+                          <span>Appointment Confirmed on CRM</span>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -602,7 +1077,7 @@ export const PhoneSimulatorPage: React.FC = () => {
               <div className="grid grid-cols-3 gap-2 px-2">
                 <button
                   type="button"
-                  onClick={() => setIsMuted(!isMuted)}
+                  onClick={toggleMute}
                   className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
                     isMuted
                       ? 'bg-red-500/20 border-red-500 text-red-400'
@@ -610,7 +1085,7 @@ export const PhoneSimulatorPage: React.FC = () => {
                   }`}
                 >
                   {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
-                  <span className="text-[9px] font-medium">Mute</span>
+                  <span className="text-[9px] font-medium">{isMuted ? 'Unmute' : 'Mute'}</span>
                 </button>
 
                 <button
@@ -639,7 +1114,7 @@ export const PhoneSimulatorPage: React.FC = () => {
           </div>
         )}
 
-        {/* ----------------- STATE 4: ENDED ----------------- */}
+        {/* ----------------- STATE 4: ENDED (CRM Sync Confirmation) ----------------- */}
         {callState === 'ended' && (
           <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
@@ -659,12 +1134,33 @@ export const PhoneSimulatorPage: React.FC = () => {
                 <span className="text-emerald-400 font-bold">Appointment Locked</span>
               </div>
               <div className="flex justify-between">
-                <span>Value Prop Delivered:</span>
-                <span className="text-zinc-400">{company}</span>
+                <span>Lead Stage:</span>
+                <span className="text-emerald-300 font-semibold">meeting_booked</span>
               </div>
               <div className="flex justify-between">
+                <span>Value Prop Delivered:</span>
+                <span className="text-zinc-400 truncate max-w-[160px]">{company}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1 border-t border-zinc-800">
                 <span>CRM Sync:</span>
-                <span className="text-blue-400">Saved to Supabase</span>
+                {persistStatus === 'saved' ? (
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={12} />
+                    Saved to Supabase
+                  </span>
+                ) : persistStatus === 'saving' ? (
+                  <span className="text-blue-400 font-medium flex items-center gap-1">
+                    <Loader2 size={12} className="animate-spin" />
+                    Syncing...
+                  </span>
+                ) : persistStatus === 'error' ? (
+                  <span className="text-amber-400 font-medium flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    Check DB Logs
+                  </span>
+                ) : (
+                  <span className="text-zinc-500 font-medium">Pending</span>
+                )}
               </div>
             </div>
 

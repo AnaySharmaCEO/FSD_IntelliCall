@@ -61,7 +61,7 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
     }
 
     try {
-      await createCall.mutateAsync({
+      const newCall = await createCall.mutateAsync({
         leadId: lead.id,
         agentId: selectedAgentId,
         campaignId: selectedCampaignId || undefined,
@@ -81,6 +81,7 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
               type: 'broadcast',
               event: 'incoming_call',
               payload: {
+                callId: newCall?.id,
                 callerName: companyName,
                 callerId: '+91 98765 43210',
                 leadName: leadName,
