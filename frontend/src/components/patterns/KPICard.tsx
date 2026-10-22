@@ -28,14 +28,18 @@ export const KPICard: React.FC<KPICardProps> = ({
   return (
     <div
       className={cn(
-        'p-5 rounded-[var(--radius-md)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)]',
-        'shadow-xs hover:border-[var(--color-border-default)] transition-colors',
+        'p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)]',
+        'shadow-xs hover:border-[var(--color-border-default)] transition-all shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]',
         className
       )}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <span className="text-[13px] font-medium text-[var(--color-text-secondary)]">{label}</span>
-        {icon && <span className="text-[var(--color-text-muted)]">{icon}</span>}
+        {icon && (
+          <div className="w-9 h-9 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] flex items-center justify-center text-[var(--color-text-secondary)] shrink-0">
+            {icon}
+          </div>
+        )}
       </div>
 
       <div className="flex items-baseline gap-3">

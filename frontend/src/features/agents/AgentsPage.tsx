@@ -367,7 +367,7 @@ export const AgentsPage: React.FC = () => {
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="Define behavioral rules, tone, qualification criteria, and objections..."
-              className="w-full p-3 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-action-primary)]"
+              className="w-full p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/40 focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)] outline-none transition-all duration-150"
             />
           </div>
 

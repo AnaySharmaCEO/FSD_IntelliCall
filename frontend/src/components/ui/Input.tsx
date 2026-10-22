@@ -21,12 +21,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'h-9 px-3 rounded-[var(--radius-sm)] border text-[13px] bg-[var(--color-bg-primary)]',
+            'h-9 px-3 rounded-lg border text-[13px] bg-[var(--color-bg-sunken)]/40',
             'text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]',
-            'transition-colors duration-[var(--duration-fast)] outline-none',
+            'transition-all duration-[var(--duration-fast)] outline-none',
             error
               ? 'border-[var(--color-error)] focus:ring-2 focus:ring-[var(--color-error)]/20'
-              : 'border-[var(--color-border-default)] focus:border-[var(--color-action-primary)] focus:ring-2 focus:ring-[var(--color-action-primary)]/20',
+              : 'border-[var(--color-border-default)] focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] focus:ring-2 focus:ring-[var(--color-action-primary)]/20 shadow-2xs',
             className
           )}
           {...props}

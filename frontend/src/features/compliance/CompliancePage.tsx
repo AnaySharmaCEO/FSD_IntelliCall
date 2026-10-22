@@ -220,7 +220,7 @@ export const CompliancePage: React.FC = () => {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. 'This call is recorded for quality and security purposes'..."
-              className="w-full p-3 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-action-primary)]"
+              className="w-full p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/40 focus:border-[var(--color-action-primary)] focus:bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-primary)] outline-none transition-all duration-150"
             />
           </div>
 
