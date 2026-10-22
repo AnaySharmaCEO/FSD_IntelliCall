@@ -4,6 +4,7 @@ import { Modal, Button, Select, Input, useToast } from '../../../components/ui';
 import { useAgents, useCampaigns, useCreateCall } from '../../../api/hooks';
 import type { Lead } from '../../../contracts/entities';
 import { formatPhone } from '../../../lib/format';
+import { supabase } from '../../../lib/supabase';
 
 interface ScheduleAICallModalProps {
   open: boolean;
@@ -67,6 +68,25 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
         status: callTiming === 'now' ? 'queued' : 'scheduled',
         scheduledFor: callTiming === 'scheduled' ? new Date(scheduledDateTime).toISOString() : undefined,
       } as any);
+
+      // Broadcast to any active Phone Simulator clients
+      if (callTiming === 'now') {
+        const simChannel = supabase.channel('phone-simulator');
+        simChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            simChannel.send({
+              type: 'broadcast',
+              event: 'incoming_call',
+              payload: {
+                callerName: 'IntelliCall AI',
+                callerId: '+91 98765 43210',
+                leadName: leadName,
+                leadId: lead.id,
+              },
+            });
+          }
+        });
+      }
 
       toast(
         callTiming === 'now'
@@ -165,7 +185,7 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
             <button
               type="button"
               onClick={() => setCallTiming('now')}
-              className={`p-2.5 rounded-[var(--radius-md)] border text-left text-xs transition-colors flex items-center gap-2 ${
+              className={`p-2.5 rounded-[var(--radius-md)] border text-left text-xs transition-colors flex items-center gap-2 cursor-pointer ${
                 callTiming === 'now'
                   ? 'bg-[var(--color-bg-elevated)] border-emerald-500/50 text-[var(--color-text-primary)] shadow-sm'
                   : 'bg-[var(--color-bg-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -181,7 +201,7 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
             <button
               type="button"
               onClick={() => setCallTiming('scheduled')}
-              className={`p-2.5 rounded-[var(--radius-md)] border text-left text-xs transition-colors flex items-center gap-2 ${
+              className={`p-2.5 rounded-[var(--radius-md)] border text-left text-xs transition-colors flex items-center gap-2 cursor-pointer ${
                 callTiming === 'scheduled'
                   ? 'bg-[var(--color-bg-elevated)] border-blue-500/50 text-[var(--color-text-primary)] shadow-sm'
                   : 'bg-[var(--color-bg-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'

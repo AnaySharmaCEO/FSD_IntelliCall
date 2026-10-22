@@ -19,6 +19,7 @@ import CompliancePage from '../features/compliance/CompliancePage';
 import AnalyticsPage from '../features/analytics/AnalyticsPage';
 import SettingsPage from '../features/settings/SettingsPage';
 import KitPage from '../features/kit/KitPage';
+import PhoneSimulatorPage from '../features/calls/PhoneSimulatorPage';
 
 export const App: React.FC = () => {
   return (
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
       <Route path="/login" element={<AuthPage initialMode="signin" />} />
       <Route path="/signup" element={<AuthPage initialMode="signup" />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
+      <Route path="/phone-simulator" element={<PhoneSimulatorPage />} />
 
       {/* Main Authenticated / App Shell */}
       <Route element={<AppLayout />}>

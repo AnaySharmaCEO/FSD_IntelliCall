@@ -379,6 +379,34 @@
      - `supabase migration list` confirms all 10 migrations are fully applied and synchronized between Local and Remote.
   4. **Edge Function Verification:**
      - `supabase functions list` confirms all 5 Edge Functions (`handle-call-webhook`, `process-ai-decision`, `handle-appointment-webhook`, `trigger-scheduled-calls`, and `analysis-run`) are live and in `ACTIVE` status.
+* **Commit Reference:** `0040f3c` (`feat(database): push schema fixes and pipeline fields migrations to supabase cloud`)
+
+---
+
+### [2026-10-22 08:48:00 +05:30] — The Conversational Chameleon: Multi-Surface Showcase & Psychological Voice Engine
+* **Author:** Anay Sharma
+* **Phase:** AI Voice Agent Architecture & Showcase Experience
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Conversational Chameleon Psychological Blueprint (`docs/ai_agent/`):**
+     - Formulated complete architecture `docs/ai_agent/conversational_chameleon_plan.md` and `docs/ai_agent/voice_agent_architecture_plan.md`.
+     - Integrated Robert Greene's *48 Laws of Power* (Law 4: Say Less Than Necessary $\le 20$ words; Law 9: Win Through Actions, Never Argument; Law 13: Appeal to Self-Interest; Law 38: Linguistic Mirroring).
+     - Embedded Chris Voss's Tactical Empathy (*Never Split the Difference*): Preemptive Accusation Audit, Emotional Labeling, and "No"-oriented questions.
+     - Formulated Challenger Sale diagnostic value gaps to create an analytical urge for appointment booking.
+  2. **Dual-Brain Architecture (System 1 vs System 2):**
+     - **System 1 (`backend/voice-agent/agent.py`):** Upgraded Gemini Multimodal Live API worker with strict brevity constraint (&le;20 words), native backchanneling, 220ms VAD silence window, and dynamic Hinglish/English/Hindi code-switching.
+     - **System 2 (`thinking_engine.py`):** 15-second background cognitive loop for defense stance detection, objection handling, and prompt hot-swapping into the active LiveKit session.
+  3. **Mobile Phone Call Simulator Client (`PhoneSimulatorPage.tsx`):**
+     - Built standalone, mobile-responsive phone client at `/phone-simulator` that transforms any smartphone into a realistic phone call receiver.
+     - Dual-Tone Multi-Frequency (DTMF) Web Audio API ringtone synthesizer with haptic mobile vibration (`navigator.vibrate`).
+     - Screen Wake Lock API (`navigator.wakeLock`) to keep display awake during conversations.
+     - Live mic audio capture with Web Audio API AnalyserNode rendering a real-time reactive waveform.
+     - In-call controls: Mute, Speaker, Keypad, and Hangup.
+  4. **Multi-Surface Showcase Orchestration:**
+     - Wired Supabase Realtime channel `phone-simulator`: clicking "Dispatch AI Call" on the desktop dashboard or "Ring Phone Client" on the Live Monitor instantly triggers ringing and vibration on any connected smartphone.
+     - Enhanced `LiveCallMonitorPage.tsx` with a Psychological Telemetry Cockpit displaying live Linguistic Register, Active Tactical Weapon (Law 4 / Voss), and Value Gap diagnostics.
+  5. **Build Verification:**
+     - Ran `npm run build` in `frontend/` — passed with **0 errors** (2,278 modules transformed).
 
 
 
