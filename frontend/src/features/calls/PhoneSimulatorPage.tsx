@@ -144,40 +144,45 @@ export const PhoneSimulatorPage: React.FC = () => {
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       audioCtxRef.current = ctx;
+      ctx.resume().catch(() => {});
 
       const playChimeBurst = () => {
         if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') return;
-        const now = ctx.currentTime;
+        try {
+          const now = ctx.currentTime;
 
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const gain = ctx.createGain();
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
 
-        osc1.type = 'sine';
-        osc2.type = 'sine';
-        osc1.frequency.setValueAtTime(440, now);
-        osc2.frequency.setValueAtTime(480, now);
+          osc1.type = 'sine';
+          osc2.type = 'sine';
+          osc1.frequency.setValueAtTime(440, now);
+          osc2.frequency.setValueAtTime(480, now);
 
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.2, now + 0.1);
-        gain.gain.setValueAtTime(0.2, now + 1.6);
-        gain.gain.linearRampToValueAtTime(0, now + 1.8);
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.2, now + 0.1);
+          gain.gain.setValueAtTime(0.2, now + 1.6);
+          gain.gain.linearRampToValueAtTime(0, now + 1.8);
 
-        osc1.connect(gain);
-        osc2.connect(gain);
-        gain.connect(ctx.destination);
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
 
-        osc1.start(now);
-        osc2.start(now);
-        osc1.stop(now + 1.8);
-        osc2.stop(now + 1.8);
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 1.8);
+          osc2.stop(now + 1.8);
+        } catch {}
       };
 
       playChimeBurst();
       ringtoneTimerRef.current = window.setInterval(playChimeBurst, 3200);
 
       if ('vibrate' in navigator) {
-        navigator.vibrate([500, 250, 500, 250, 1000]);
+        try {
+          navigator.vibrate([500, 250, 500, 250, 1000]);
+        } catch {}
       }
     } catch {}
   };
@@ -403,6 +408,13 @@ export const PhoneSimulatorPage: React.FC = () => {
     setSavedAppointmentId(null);
     await requestWakeLock();
 
+    // Initialize AudioContexts synchronously inside the user gesture
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const inputCtx = new AudioContextClass();
+    const outputCtx = new AudioContextClass();
+    inputCtx.resume().catch(() => {});
+    outputCtx.resume().catch(() => {});
+
     // Build the exact psychological and tactical system instructions
     const systemInstruction = `
 You are Anay, an elite growth and vehicle loan refinancing consultant calling from ${company}.
@@ -424,9 +436,11 @@ ABSOLUTE CARDINAL DIRECTIVES:
     try {
       const liveSession = new GeminiLiveSession({
         apiKey: geminiApiKey,
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-3.8-live',
         voiceName: geminiVoice,
         systemInstruction: systemInstruction,
+        inputAudioCtx: inputCtx,
+        outputAudioCtx: outputCtx,
         onConnected: () => {
           setConnectionStatus('connected');
         },
