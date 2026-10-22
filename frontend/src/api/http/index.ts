@@ -171,7 +171,19 @@ function mapCampaignRecord(row: any): Campaign {
     launchedAt: row.launched_at || row.launchedAt,
     // Database fields genuinely needed by UI components
     strategy: row.strategy || 'direct_qualification',
-    strategyConfig: row.strategy_config || row.strategyConfig || {},
+    strategyConfig: {
+      companyName: row.strategy_config?.companyName || row.strategy_config?.company_name || row.strategyConfig?.companyName || '',
+      company_name: row.strategy_config?.company_name || row.strategy_config?.companyName || '',
+      motto: row.strategy_config?.motto || row.strategyConfig?.motto || '',
+      offer: row.strategy_config?.offer || row.strategyConfig?.offer || '',
+      primaryPainPoint: row.strategy_config?.primaryPainPoint || row.strategy_config?.primary_pain_point || '',
+      primary_pain_point: row.strategy_config?.primary_pain_point || row.strategy_config?.primaryPainPoint || '',
+      valueGap: row.strategy_config?.valueGap || row.strategy_config?.value_gap_statement || row.strategy_config?.value_gap || '',
+      value_gap_statement: row.strategy_config?.value_gap_statement || row.strategy_config?.valueGap || '',
+      qualifyingQuestions: row.strategy_config?.qualifyingQuestions || row.strategy_config?.qualifying_questions || [],
+      qualifying_questions: row.strategy_config?.qualifying_questions || row.strategy_config?.qualifyingQuestions || [],
+      ...(row.strategy_config || row.strategyConfig || {}),
+    },
     confidenceThreshold: row.confidence_threshold !== undefined ? Number(row.confidence_threshold) : 80,
     daily_budget: row.daily_budget ? Number(row.daily_budget) : undefined,
     concurrency_limit: row.concurrency_limit ? Number(row.concurrency_limit) : undefined,
@@ -392,8 +404,8 @@ export class SupabaseApiClient implements ApiClient {
     if ((campaign as any).strategy) {
       payload.strategy = String((campaign as any).strategy);
     }
-    if ((campaign as any).strategy_config) {
-      payload.strategy_config = (campaign as any).strategy_config;
+    if ((campaign as any).strategy_config || (campaign as any).strategyConfig) {
+      payload.strategy_config = (campaign as any).strategy_config || (campaign as any).strategyConfig;
     }
     if ((campaign as any).confidence_threshold !== undefined || (campaign as any).confidenceThreshold !== undefined) {
       const threshold = (campaign as any).confidence_threshold ?? (campaign as any).confidenceThreshold;

@@ -143,6 +143,19 @@ export const CampaignSchema = z.object({
     }),
   createdAt: z.string(),
   launchedAt: z.string().optional(),
+  strategy: z.string().default("direct_qualification"),
+  strategyConfig: z
+    .object({
+      companyName: z.string().optional(),
+      motto: z.string().optional(),
+      offer: z.string().optional(),
+      targetAudience: z.string().optional(),
+      primaryPainPoint: z.string().optional(),
+      valueGap: z.string().optional(),
+      qualifyingQuestions: z.array(z.string()).default([]),
+      objectionPlaybook: z.record(z.string(), z.string()).default({}),
+    })
+    .default({}),
 });
 export type Campaign = z.infer<typeof CampaignSchema>;
 

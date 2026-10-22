@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   BrainCircuit,
 } from 'lucide-react';
-import { useCalls, useCallAnalysis } from '../../api/hooks';
+import { useCalls, useCallAnalysis, useCampaigns } from '../../api/hooks';
 import { realtimeClient } from '../../realtime';
 import { supabase } from '../../lib/supabase';
 import { StatusChip, ConfidenceMeter } from '../../components/patterns';
@@ -27,6 +27,7 @@ import type { Call } from '../../contracts/entities';
 
 export const LiveCallMonitorPage: React.FC = () => {
   const { data: callsData } = useCalls();
+  const { data: campaigns = [] } = useCampaigns();
   const { toast } = useToast();
 
   const [activeCall, setActiveCall] = useState<Call | null>(() => {
@@ -81,6 +82,10 @@ export const LiveCallMonitorPage: React.FC = () => {
   };
 
   const handleDispatchToPhone = () => {
+    const activeCamp = campaigns.find((c) => c.status === 'active') || campaigns[0];
+    const cfg = activeCamp?.strategyConfig || (activeCamp as any)?.strategy_config || {};
+    const companyName = cfg.companyName || cfg.company_name || 'FinEdge Capital';
+
     const simChannel = supabase.channel('phone-simulator');
     simChannel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
@@ -88,12 +93,17 @@ export const LiveCallMonitorPage: React.FC = () => {
           type: 'broadcast',
           event: 'incoming_call',
           payload: {
-            callerName: 'IntelliCall AI (Resonology Engine)',
+            callerName: companyName,
             callerId: '+91 98765 43210',
-            leadName: 'Showcase Prospect',
+            leadName: 'Vikram Malhotra',
+            campaignName: activeCamp?.name || 'Q4 Priority Auto Loan Refinance',
+            companyName: companyName,
+            motto: cfg.motto || 'reducing vehicle financing rates from 14% down to 8.4%',
+            offer: cfg.offer || 'a complimentary 5-minute portfolio interest audit this Thursday',
+            questions: cfg.qualifyingQuestions || cfg.qualifying_questions || [],
           },
         });
-        toast('Triggered incoming call to all connected Phone Simulators!', 'success');
+        toast(`Ringing Phone Simulator as ${companyName}!`, 'success');
       }
     });
   };
