@@ -473,3 +473,5 @@
      - `persistAppointmentToCRM()` associates the created appointment and completed call row with the exact selected `agent_id`, `campaign_id`, and `lead_id` in Supabase.
   6. **Build Verification:**
      - Verified with `npm --prefix frontend run build` — passed with **0 errors** (2,279 modules transformed cleanly in 5.31s).
+  7. **Supabase Cloud Push:**
+     - Executed `supabase db push`; applied migration `20261023000001_remaster_agent_and_campaign_settings.sql` to Supabase Cloud remote database. `supabase migration list` confirms all 11 migrations are 100% synchronized between local and remote.
