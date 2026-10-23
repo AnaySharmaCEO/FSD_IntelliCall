@@ -4,6 +4,7 @@ import { Modal, Button, Select, Input, useToast } from '../../../components/ui';
 import { useAgents, useCampaigns, useCreateCall } from '../../../api/hooks';
 import type { Lead } from '../../../contracts/entities';
 import { formatPhone } from '../../../lib/format';
+import { supabase } from '../../../lib/supabase';
 
 interface ScheduleAICallModalProps {
   open: boolean;
@@ -60,13 +61,41 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
     }
 
     try {
-      await createCall.mutateAsync({
+      const newCall = await createCall.mutateAsync({
         leadId: lead.id,
         agentId: selectedAgentId,
         campaignId: selectedCampaignId || undefined,
         status: callTiming === 'now' ? 'queued' : 'scheduled',
         scheduledFor: callTiming === 'scheduled' ? new Date(scheduledDateTime).toISOString() : undefined,
       } as any);
+
+      // Broadcast to any active Phone Simulator clients
+      if (callTiming === 'now') {
+        const selectedCampaign = campaigns.find((c) => c.id === selectedCampaignId);
+        const cfg = selectedCampaign?.strategyConfig || (selectedCampaign as any)?.strategy_config || {};
+        const companyName = cfg.companyName || cfg.company_name || 'FinEdge Capital';
+        const simChannel = supabase.channel('phone-simulator');
+        simChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            simChannel.send({
+              type: 'broadcast',
+              event: 'incoming_call',
+              payload: {
+                callId: newCall?.id,
+                callerName: companyName,
+                callerId: '+91 98765 43210',
+                leadName: leadName,
+                leadId: lead.id,
+                campaignName: selectedCampaign?.name,
+                companyName: companyName,
+                motto: cfg.motto,
+                offer: cfg.offer,
+                questions: cfg.qualifyingQuestions || cfg.qualifying_questions || [],
+              },
+            });
+          }
+        });
+      }
 
       toast(
         callTiming === 'now'
@@ -154,6 +183,29 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
               })),
             ]}
           />
+          {(() => {
+            const camp = campaigns.find((c) => c.id === selectedCampaignId);
+            const cfg = camp?.strategyConfig || (camp as any)?.strategy_config;
+            if (!cfg) return null;
+            return (
+              <div className="mt-2 p-2.5 rounded-[var(--radius-md)] bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] text-[11px] space-y-1">
+                <div className="flex items-center justify-between text-zinc-300">
+                  <span className="text-[var(--color-text-muted)]">Speaking as:</span>
+                  <span className="font-semibold text-blue-400">{cfg.companyName || cfg.company_name || 'IntelliCall'}</span>
+                </div>
+                {cfg.motto && (
+                  <p className="text-[var(--color-text-secondary)] italic truncate">
+                    "{cfg.motto}"
+                  </p>
+                )}
+                {cfg.offer && (
+                  <p className="text-emerald-400 font-medium truncate">
+                    Offer: {cfg.offer}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Timing options */}
@@ -165,7 +217,7 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
             <button
               type="button"
               onClick={() => setCallTiming('now')}
-              className={`p-2.5 rounded-[var(--radius-md)] border text-left text-xs transition-colors flex items-center gap-2 ${
+              className={`p-2.5 rounded-[var(--radius-md)] border text-left text-xs transition-colors flex items-center gap-2 cursor-pointer ${
                 callTiming === 'now'
                   ? 'bg-[var(--color-bg-elevated)] border-emerald-500/50 text-[var(--color-text-primary)] shadow-sm'
                   : 'bg-[var(--color-bg-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -181,7 +233,7 @@ export const ScheduleAICallModal: React.FC<ScheduleAICallModalProps> = ({
             <button
               type="button"
               onClick={() => setCallTiming('scheduled')}
-              className={`p-2.5 rounded-[var(--radius-md)] border text-left text-xs transition-colors flex items-center gap-2 ${
+              className={`p-2.5 rounded-[var(--radius-md)] border text-left text-xs transition-colors flex items-center gap-2 cursor-pointer ${
                 callTiming === 'scheduled'
                   ? 'bg-[var(--color-bg-elevated)] border-blue-500/50 text-[var(--color-text-primary)] shadow-sm'
                   : 'bg-[var(--color-bg-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'

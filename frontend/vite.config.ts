@@ -1,6 +1,7 @@
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json'
@@ -17,6 +18,7 @@ export default defineConfig(({ mode }) => {
       minify: !emitSourcemaps,
     },
     plugins: [
+      basicSsl(),
       react(),
       tailwindcss(),
       figmaSiteConfiguration(siteConfiguration),

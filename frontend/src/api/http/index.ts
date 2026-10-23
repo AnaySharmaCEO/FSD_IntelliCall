@@ -137,6 +137,44 @@ function mapLeadRecord(row: any): Lead {
   } as unknown as Lead;
 }
 
+function mapAgentRecord(row: any): Agent {
+  const tactics = row.tactics || {};
+  return {
+    id: row.id,
+    orgId: row.organization_id || row.orgId,
+    name: row.name || 'AI Voice Agent',
+    description: row.description || row.objective || '',
+    status: row.status || 'active',
+    activeVersion: row.active_version || 'v1.0.0',
+    primaryLanguage: row.language || 'en-IN',
+    language: row.language || 'en-IN',
+    voiceId: row.voice_model || row.voice || 'Aoede',
+    voice: row.voice_model || row.voice || 'Aoede',
+    voiceModel: row.voice_model || row.voice || 'Aoede',
+    voice_model: row.voice_model || row.voice || 'Aoede',
+    roleTitle: row.role_title || row.objective || 'Senior Growth Consultant',
+    role_title: row.role_title || row.objective || 'Senior Growth Consultant',
+    brevityWords: Number(row.brevity_words) || 25,
+    brevity_words: Number(row.brevity_words) || 25,
+    tactics: {
+      vossEmpathy: tactics.voss_empathy ?? tactics.vossEmpathy ?? true,
+      law4Brevity: tactics.law4_brevity ?? tactics.law4Brevity ?? true,
+      noOrientedClose: tactics.no_oriented_close ?? tactics.noOrientedClose ?? true,
+      linguisticMirroring: tactics.linguistic_mirroring ?? tactics.linguisticMirroring ?? true,
+    },
+    systemPrompt: row.system_prompt || 'You are an elite conversational growth consultant. Speak like an experienced professional on a live phone call — crisp, conversational, and direct.',
+    system_prompt: row.system_prompt || 'You are an elite conversational growth consultant. Speak like an experienced professional on a live phone call — crisp, conversational, and direct.',
+    greeting: row.greeting || 'Namaste, this is {{agent_name}} calling. Do you have a quick minute?',
+    voiceSpeed: Number(row.voice_speed) || 1.0,
+    voice_speed: Number(row.voice_speed) || 1.0,
+    voiceTemperature: Number(row.voice_temperature) || 0.7,
+    voice_temperature: Number(row.voice_temperature) || 0.7,
+    communicationStyle: row.communication_style || 'consultative',
+    communication_style: row.communication_style || 'consultative',
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+  } as unknown as Agent;
+}
+
 function mapCampaignRecord(row: any): Campaign {
   return {
     id: row.id,
@@ -171,7 +209,39 @@ function mapCampaignRecord(row: any): Campaign {
     launchedAt: row.launched_at || row.launchedAt,
     // Database fields genuinely needed by UI components
     strategy: row.strategy || 'direct_qualification',
-    strategyConfig: row.strategy_config || row.strategyConfig || {},
+    companyName: row.company_name || row.strategy_config?.company_name || row.strategy_config?.companyName || 'FinEdge Capital',
+    company_name: row.company_name || row.strategy_config?.company_name || row.strategy_config?.companyName || 'FinEdge Capital',
+    motto: row.motto || row.strategy_config?.motto || 'reducing vehicle financing rates from 14% down to 8.4%',
+    offer: row.offer || row.strategy_config?.offer || 'a complimentary 5-minute portfolio interest audit this Thursday',
+    primaryPainPoint: row.primary_pain_point || row.strategy_config?.primary_pain_point || row.strategy_config?.primaryPainPoint || 'Paying predatory double-digit interest rates on vehicle loans',
+    valueGap: row.value_gap || row.strategy_config?.value_gap || row.strategy_config?.valueGap || '₹4,200/month in avoidable interest overpayments',
+    qualificationQuestions: row.qualification_questions || row.strategy_config?.qualifying_questions || row.strategy_config?.qualifyingQuestions || [
+      'What interest rate are you currently paying on your primary vehicle loan?',
+      'Has your vehicle been registered for over 12 months with clean repayment?',
+    ],
+    objectionPlaybook: row.objection_playbook || row.strategy_config?.objection_playbook || row.strategy_config?.objectionPlaybook || {
+      busy: 'Bilkul samajh sakta hoon ji. Should I connect tomorrow afternoon, or drop a quick WhatsApp?',
+      skeptical: 'Aapne hamare partner network par rate comparison check kiya tha. Main bas confirm kar raha tha ki aapko fair rate mila ya nahi.',
+      not_interested: 'Totally understand! Would you be opposed if I just kept your contact handy for when your loan renewal comes up?',
+    },
+    targetAudience: row.target_audience || row.strategy_config?.target_audience || 'Vehicle loan holders with >12% interest',
+    strategyConfig: {
+      companyName: row.company_name || row.strategy_config?.companyName || row.strategy_config?.company_name || 'FinEdge Capital',
+      company_name: row.company_name || row.strategy_config?.company_name || row.strategy_config?.companyName || 'FinEdge Capital',
+      motto: row.motto || row.strategy_config?.motto || 'reducing vehicle financing rates from 14% down to 8.4%',
+      offer: row.offer || row.strategy_config?.offer || 'a complimentary 5-minute portfolio interest audit this Thursday',
+      primaryPainPoint: row.primary_pain_point || row.strategy_config?.primaryPainPoint || row.strategy_config?.primary_pain_point || '',
+      primary_pain_point: row.primary_pain_point || row.strategy_config?.primary_pain_point || row.strategy_config?.primaryPainPoint || '',
+      valueGap: row.value_gap || row.strategy_config?.valueGap || row.strategy_config?.value_gap_statement || row.strategy_config?.value_gap || '',
+      value_gap_statement: row.value_gap || row.strategy_config?.value_gap_statement || row.strategy_config?.value_gap || '',
+      qualifyingQuestions: row.qualification_questions || row.strategy_config?.qualifyingQuestions || row.strategy_config?.qualifying_questions || [],
+      qualifying_questions: row.qualification_questions || row.strategy_config?.qualifying_questions || row.strategy_config?.qualifyingQuestions || [],
+      objectionPlaybook: row.objection_playbook || row.strategy_config?.objectionPlaybook || row.strategy_config?.objection_playbook || {},
+      objection_playbook: row.objection_playbook || row.strategy_config?.objection_playbook || row.strategy_config?.objectionPlaybook || {},
+      targetAudience: row.target_audience || row.strategy_config?.targetAudience || row.strategy_config?.target_audience || '',
+      target_audience: row.target_audience || row.strategy_config?.target_audience || row.strategy_config?.targetAudience || '',
+      ...(row.strategy_config || row.strategyConfig || {}),
+    },
     confidenceThreshold: row.confidence_threshold !== undefined ? Number(row.confidence_threshold) : 80,
     daily_budget: row.daily_budget ? Number(row.daily_budget) : undefined,
     concurrency_limit: row.concurrency_limit ? Number(row.concurrency_limit) : undefined,
@@ -303,25 +373,84 @@ export class SupabaseApiClient implements ApiClient {
   async listAgents(): Promise<Agent[]> {
     const { data, error } = await supabase.from('agents').select('*').order('created_at', { ascending: false });
     if (error) throw error;
-    return (data || []) as Agent[];
+    return (data || []).map(mapAgentRecord);
   }
 
   async getAgent(id: string): Promise<Agent | null> {
     const { data, error } = await supabase.from('agents').select('*').eq('id', id).maybeSingle();
     if (error) throw error;
-    return (data as Agent) || null;
+    return data ? mapAgentRecord(data) : null;
   }
 
   async createAgent(agent: Partial<Agent>): Promise<Agent> {
-    const { data, error } = await supabase.from('agents').insert(agent).select().single();
+    const preferredOrg = agent.orgId || (agent as any).organization_id;
+    const orgId = await this.resolveActiveOrganizationId(preferredOrg, 'admin');
+
+    const payload: Record<string, any> = {
+      organization_id: orgId,
+      name: agent.name || 'AI Assistant',
+      status: agent.status || 'draft',
+      role_title: agent.roleTitle || (agent as any).role_title || agent.objective || 'Senior Growth Consultant',
+      voice_model: agent.voiceModel || (agent as any).voice_model || agent.voice || agent.voiceId || 'Aoede',
+      voice: agent.voiceModel || (agent as any).voice_model || agent.voice || agent.voiceId || 'Aoede',
+      brevity_words: agent.brevityWords ?? (agent as any).brevity_words ?? 25,
+      tactics: agent.tactics || (agent as any).tactics || {
+        voss_empathy: true,
+        law4_brevity: true,
+        no_oriented_close: true,
+        linguistic_mirroring: true,
+      },
+      system_prompt: agent.systemPrompt || (agent as any).system_prompt || '',
+      greeting: agent.greeting || '',
+      voice_speed: agent.voiceSpeed ?? (agent as any).voice_speed ?? 1.0,
+      voice_temperature: agent.voiceTemperature ?? (agent as any).voice_temperature ?? 0.7,
+      communication_style: agent.communicationStyle || (agent as any).communication_style || 'consultative',
+      language: agent.language || 'en-IN',
+    };
+
+    const { data, error } = await supabase.from('agents').insert(payload).select().single();
     if (error) throw error;
-    return data as Agent;
+    return mapAgentRecord(data);
   }
 
   async updateAgent(id: string, updates: Partial<Agent>): Promise<Agent> {
-    const { data, error } = await supabase.from('agents').update(updates).eq('id', id).select().single();
+    const payload: Record<string, any> = {};
+
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.roleTitle !== undefined || (updates as any).role_title !== undefined) {
+      payload.role_title = updates.roleTitle ?? (updates as any).role_title;
+    }
+    if (updates.voiceModel !== undefined || (updates as any).voice_model !== undefined || updates.voice !== undefined) {
+      const v = updates.voiceModel ?? (updates as any).voice_model ?? updates.voice;
+      payload.voice_model = v;
+      payload.voice = v;
+    }
+    if (updates.brevityWords !== undefined || (updates as any).brevity_words !== undefined) {
+      payload.brevity_words = Number(updates.brevityWords ?? (updates as any).brevity_words);
+    }
+    if (updates.tactics !== undefined || (updates as any).tactics !== undefined) {
+      payload.tactics = updates.tactics ?? (updates as any).tactics;
+    }
+    if (updates.systemPrompt !== undefined || (updates as any).system_prompt !== undefined) {
+      payload.system_prompt = updates.systemPrompt ?? (updates as any).system_prompt;
+    }
+    if (updates.greeting !== undefined) payload.greeting = updates.greeting;
+    if (updates.voiceSpeed !== undefined || (updates as any).voice_speed !== undefined) {
+      payload.voice_speed = Number(updates.voiceSpeed ?? (updates as any).voice_speed);
+    }
+    if (updates.voiceTemperature !== undefined || (updates as any).voice_temperature !== undefined) {
+      payload.voice_temperature = Number(updates.voiceTemperature ?? (updates as any).voice_temperature);
+    }
+    if (updates.communicationStyle !== undefined || (updates as any).communication_style !== undefined) {
+      payload.communication_style = updates.communicationStyle ?? (updates as any).communication_style;
+    }
+    if (updates.language !== undefined) payload.language = updates.language;
+    payload.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase.from('agents').update(payload).eq('id', id).select().single();
     if (error) throw error;
-    return data as Agent;
+    return mapAgentRecord(data);
   }
 
   async deleteAgent(id: string): Promise<void> {
@@ -392,14 +521,35 @@ export class SupabaseApiClient implements ApiClient {
     if ((campaign as any).strategy) {
       payload.strategy = String((campaign as any).strategy);
     }
-    if ((campaign as any).strategy_config) {
-      payload.strategy_config = (campaign as any).strategy_config;
+    if ((campaign as any).strategy_config || (campaign as any).strategyConfig) {
+      payload.strategy_config = (campaign as any).strategy_config || (campaign as any).strategyConfig;
     }
     if ((campaign as any).confidence_threshold !== undefined || (campaign as any).confidenceThreshold !== undefined) {
       const threshold = (campaign as any).confidence_threshold ?? (campaign as any).confidenceThreshold;
       if (threshold !== null && threshold !== undefined) {
         payload.confidence_threshold = Number(threshold);
       }
+    }
+
+    if ((campaign as any).company_name || campaign.companyName) {
+      payload.company_name = (campaign as any).company_name || campaign.companyName;
+    }
+    if (campaign.motto) payload.motto = campaign.motto;
+    if (campaign.offer) payload.offer = campaign.offer;
+    if ((campaign as any).primary_pain_point || campaign.primaryPainPoint) {
+      payload.primary_pain_point = (campaign as any).primary_pain_point || campaign.primaryPainPoint;
+    }
+    if ((campaign as any).value_gap || campaign.valueGap) {
+      payload.value_gap = (campaign as any).value_gap || campaign.valueGap;
+    }
+    if ((campaign as any).qualification_questions || campaign.qualificationQuestions) {
+      payload.qualification_questions = (campaign as any).qualification_questions || campaign.qualificationQuestions;
+    }
+    if ((campaign as any).objection_playbook || campaign.objectionPlaybook) {
+      payload.objection_playbook = (campaign as any).objection_playbook || campaign.objectionPlaybook;
+    }
+    if ((campaign as any).target_audience || campaign.targetAudience) {
+      payload.target_audience = (campaign as any).target_audience || campaign.targetAudience;
     }
 
     const { data, error } = await supabase.from('campaigns').insert(payload).select().single();
@@ -501,6 +651,27 @@ export class SupabaseApiClient implements ApiClient {
     }
     if ((updates as any).timezone !== undefined) {
       dbUpdates.timezone = String((updates as any).timezone);
+    }
+
+    if (updates.companyName !== undefined || (updates as any).company_name !== undefined) {
+      dbUpdates.company_name = updates.companyName ?? (updates as any).company_name;
+    }
+    if (updates.motto !== undefined) dbUpdates.motto = updates.motto;
+    if (updates.offer !== undefined) dbUpdates.offer = updates.offer;
+    if (updates.primaryPainPoint !== undefined || (updates as any).primary_pain_point !== undefined) {
+      dbUpdates.primary_pain_point = updates.primaryPainPoint ?? (updates as any).primary_pain_point;
+    }
+    if (updates.valueGap !== undefined || (updates as any).value_gap !== undefined) {
+      dbUpdates.value_gap = updates.valueGap ?? (updates as any).value_gap;
+    }
+    if (updates.qualificationQuestions !== undefined || (updates as any).qualification_questions !== undefined) {
+      dbUpdates.qualification_questions = updates.qualificationQuestions ?? (updates as any).qualification_questions;
+    }
+    if (updates.objectionPlaybook !== undefined || (updates as any).objection_playbook !== undefined) {
+      dbUpdates.objection_playbook = updates.objectionPlaybook ?? (updates as any).objection_playbook;
+    }
+    if (updates.targetAudience !== undefined || (updates as any).target_audience !== undefined) {
+      dbUpdates.target_audience = updates.targetAudience ?? (updates as any).target_audience;
     }
 
     dbUpdates.updated_at = new Date().toISOString();
@@ -1016,7 +1187,8 @@ export class SupabaseApiClient implements ApiClient {
       }
 
       return row;
-    });
+    }
+    );
 
     const { data, error } = await supabase.from('leads').insert(normalizedLeads).select();
     if (error) {

@@ -355,6 +355,58 @@
   9. **Route Integration & Build Verification:**
      - Registered `/leads/:id` route in `App.tsx`.
      - Verified production build via `npm run build` in `frontend/` — passed with **0 errors** (2,277 modules transformed).
+* **Commit Reference:** `7f34952` (`feat(leads): redesign sales pipeline with kanban board, detail page, and ai call scheduling`)
+
+---
+
+### [2026-10-22 07:50:00 +05:30] — Supabase Cloud Database Push & Online Synchronization
+* **Author:** Anay Sharma
+* **Phase:** Database Cloud Synchronization & Grant Fixes
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Schema & Table Grant Fixes Migration (`20261021000001_phase_2_schema_and_grant_fixes.sql`):**
+     - Granted `ALL` privileges on `public.compliance_rules`, `public.phone_numbers`, and `public.call_analyses` to `authenticated` and `service_role`, resolving PostgREST `403 Forbidden` errors.
+     - Added `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO authenticated, service_role`.
+     - Added `first_name` and `last_name` columns to `public.leads` and created `trg_sync_lead_names` trigger to synchronize `name <=> first_name + last_name`.
+     - Added `'pending'` value to `lead_status` enum.
+     - Extended `public.appointments` with `title`, `host_name`, `duration_minutes`, dropped `NOT NULL` on `lead_id`, and added `'confirmed'` to `appointment_status` enum.
+     - Notified PostgREST schema cache to reload (`NOTIFY pgrst, 'reload schema'`).
+  2. **Pipeline Fields Migration (`20261022000001_leads_pipeline_fields.sql`):**
+     - Added `estimated_value`, `next_action`, and `stage_entered_at` to `public.leads` on the live remote database.
+     - Created index `idx_leads_stage_entered_at`.
+  3. **Cloud Synchronization Execution (`supabase db push`):**
+     - Successfully pushed and applied both migrations to the online Supabase project `wdmensuuqsbnxzecqlwz` (South Asia Mumbai).
+     - `supabase migration list` confirms all 10 migrations are fully applied and synchronized between Local and Remote.
+  4. **Edge Function Verification:**
+     - `supabase functions list` confirms all 5 Edge Functions (`handle-call-webhook`, `process-ai-decision`, `handle-appointment-webhook`, `trigger-scheduled-calls`, and `analysis-run`) are live and in `ACTIVE` status.
+* **Commit Reference:** `0040f3c` (`feat(database): push schema fixes and pipeline fields migrations to supabase cloud`)
+
+---
+
+### [2026-10-22 08:48:00 +05:30] — The Conversational Chameleon: Multi-Surface Showcase & Psychological Voice Engine
+* **Author:** Anay Sharma
+* **Phase:** AI Voice Agent Architecture & Showcase Experience
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Conversational Chameleon Psychological Blueprint (`docs/ai_agent/`):**
+     - Formulated complete architecture `docs/ai_agent/conversational_chameleon_plan.md` and `docs/ai_agent/voice_agent_architecture_plan.md`.
+     - Integrated Robert Greene's *48 Laws of Power* (Law 4: Say Less Than Necessary $\le 20$ words; Law 9: Win Through Actions, Never Argument; Law 13: Appeal to Self-Interest; Law 38: Linguistic Mirroring).
+     - Embedded Chris Voss's Tactical Empathy (*Never Split the Difference*): Preemptive Accusation Audit, Emotional Labeling, and "No"-oriented questions.
+     - Formulated Challenger Sale diagnostic value gaps to create an analytical urge for appointment booking.
+  2. **Dual-Brain Architecture (System 1 vs System 2):**
+     - **System 1 (`backend/voice-agent/agent.py`):** Upgraded Gemini Multimodal Live API worker with strict brevity constraint (&le;20 words), native backchanneling, 220ms VAD silence window, and dynamic Hinglish/English/Hindi code-switching.
+     - **System 2 (`thinking_engine.py`):** 15-second background cognitive loop for defense stance detection, objection handling, and prompt hot-swapping into the active LiveKit session.
+  3. **Mobile Phone Call Simulator Client (`PhoneSimulatorPage.tsx`):**
+     - Built standalone, mobile-responsive phone client at `/phone-simulator` that transforms any smartphone into a realistic phone call receiver.
+     - Dual-Tone Multi-Frequency (DTMF) Web Audio API ringtone synthesizer with haptic mobile vibration (`navigator.vibrate`).
+     - Screen Wake Lock API (`navigator.wakeLock`) to keep display awake during conversations.
+     - Live mic audio capture with Web Audio API AnalyserNode rendering a real-time reactive waveform.
+     - In-call controls: Mute, Speaker, Keypad, and Hangup.
+  4. **Multi-Surface Showcase Orchestration:**
+     - Wired Supabase Realtime channel `phone-simulator`: clicking "Dispatch AI Call" on the desktop dashboard or "Ring Phone Client" on the Live Monitor instantly triggers ringing and vibration on any connected smartphone.
+     - Enhanced `LiveCallMonitorPage.tsx` with a Psychological Telemetry Cockpit displaying live Linguistic Register, Active Tactical Weapon (Law 4 / Voss), and Value Gap diagnostics.
+  5. **Build Verification:**
+     - Ran `npm run build` in `frontend/` — passed with **0 errors** (2,278 modules transformed).
 
 
 
@@ -368,3 +420,58 @@
 
 
 
+
+---
+
+### [2026-10-23 06:15:00 +05:30] — Forensic Debugging & Gemini Live Protocol Stabilization
+* **Author:** Anay Sharma <gamingxjanata@gmail.com>
+* **Phase:** Gemini Multimodal Live Audio Stabilization
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Root Cause 1 — Deprecated `mediaChunks` Conflict:** Discovered and eliminated `mediaChunks` payload in `frontend/src/voice/geminiLive.ts`. Per Gemini Live Protocol, `realtimeInput.audio` must be used exclusively.
+  2. **Root Cause 2 — 100ms Framing Accumulator:** Fixed micro-chunk audio fragmentation. Replaced 42ms/2048-frame raw buffer emission with a strict 100ms framing accumulator (`TARGET_CHUNK_SIZE = 1600` samples at 16kHz linear PCM), preventing server-side VAD buffer starvation.
+  3. **Root Cause 3 — High-Fidelity Linear Interpolation:** Upgraded audio downsampling from crude box-averaging to linear interpolation downsampler, preserving high-frequency speech formants for speech recognition.
+  4. **Root Cause 4 — Hybrid Client VAD with `audioStreamEnd`:** Implemented client-side RMS tracking (`rms > 0.012`) and speech pause timer (800ms). When speech ends, the client automatically dispatches `{ realtimeInput: { audioStreamEnd: true } }`, instantly committing the user turn and triggering the neural audio response.
+  5. **Root Cause 5 — Protocol-Compliant Handshake:** Deferred microphone capture and audio transmission until Google confirms session readiness with `setupComplete`.
+  6. **Root Cause 6 — Live Subtitle Streams:** Added `inputAudioTranscription: {}` and `outputAudioTranscription: {}` to session setup, enabling live interim subtitles on the phone screen.
+
+---
+
+### [2026-10-23 08:25:00 +05:30] — Remastering AI Agent Studio, Campaign Settings & Dynamic Phone Simulator
+* **Author:** Anay Sharma <gamingxjanata@gmail.com>
+* **Phase:** Dynamic AI Persona & Campaign Architecture Remaster
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Supabase Database Migration (`20261023000001_remaster_agent_and_campaign_settings.sql`):**
+     - Extended `public.agents` with `role_title`, `voice_model`, `brevity_words`, `tactics` (JSONB), `system_prompt`, `greeting`, `voice_speed`, `voice_temperature`, `communication_style`.
+     - Extended `public.campaigns` with `company_name`, `motto`, `offer`, `primary_pain_point`, `value_gap`, `qualification_questions` (JSONB), `objection_playbook` (JSONB), `target_audience`.
+     - Backfilled all existing agent and campaign records from `strategy_config`.
+     - Granted permissions to `authenticated` and `service_role` and notified PostgREST to reload schema cache.
+  2. **TypeScript Contracts & API Client (`frontend/src/contracts/entities.ts` & `frontend/src/api/http/index.ts`):**
+     - Added `AgentTacticsSchema` and extended `AgentSchema` and `CampaignSchema`.
+     - Updated `mapAgentRecord` and `mapCampaignRecord` with bidirectionally safe camelCase and snake_case transformations.
+     - Updated `createAgent`, `updateAgent`, `createCampaign`, and `updateCampaign` to persist all newly introduced persona and campaign fields directly to Supabase.
+  3. **Remastered AI Agent Studio (`frontend/src/features/agents/AgentsPage.tsx`):**
+     - Eliminated all hardcoded names (never hardcoded as "Anay"; fully customizable per agent in UI).
+     - Added role / title input (e.g. "Senior Refinancing Specialist", "Commercial Underwriting Director").
+     - Added all 5 Gemini Live neural voices (`Aoede`, `Puck`, `Charon`, `Kore`, `Fenrir`).
+     - Added Robert Greene Law 4 Brevity slider (15 to 40 words max per turn) to ensure crisp, human cadence.
+     - Added toggles for psychological tactics: Chris Voss Tactical Empathy, Law 4 Brevity enforcement, Calibrated 'No'-Oriented Closes, and Linguistic Mirroring.
+     - Upgraded agent cards to display role title, neural voice badge, language, brevity cap, and tactical badges.
+  4. **Remastered Campaign Settings (`frontend/src/features/campaigns/CampaignsPage.tsx`):**
+     - Added Objection Handling Playbook configuration for 3 primary objection categories: Busy/Driving, Skeptical/Source, and Not Interested.
+     - Updated strategy presets (Auto Loan Refinance, Inbound B2B SaaS, Titanium Card Upgrade) with matching objection scripts.
+     - Persisted campaign configurations to both top-level columns and `strategy_config`.
+  5. **Remastered Phone Simulator (`frontend/src/features/calls/PhoneSimulatorPage.tsx`):**
+     - Replaced static/teleprompter script and hardcoded "Anay" identity with 3 dynamic standby selectors:
+       * **Select AI Voice Agent** (from `agents`)
+       * **Select Outbound Campaign** (from `campaigns`)
+       * **Select Prospect / Lead Target** (from `leads`)
+     - Standby summary card dynamically updates to show chosen Agent, Neural Voice, Brevity Limit, Brand, and Target.
+     - In `handleAnswerCall()`, dynamically synthesizes the Gemini Live `systemInstruction` at runtime combining the selected Agent persona/tactics/voice, Campaign brand/motto/offer/questions/objection playbook, and Lead's real details.
+     - In-call feed dynamically shows `${agentName} (${company})` as the caller header and dynamic quick-reply fallback chips.
+     - `persistAppointmentToCRM()` associates the created appointment and completed call row with the exact selected `agent_id`, `campaign_id`, and `lead_id` in Supabase.
+  6. **Build Verification:**
+     - Verified with `npm --prefix frontend run build` — passed with **0 errors** (2,279 modules transformed cleanly in 5.31s).
+  7. **Supabase Cloud Push:**
+     - Executed `supabase db push`; applied migration `20261023000001_remaster_agent_and_campaign_settings.sql` to Supabase Cloud remote database. `supabase migration list` confirms all 11 migrations are 100% synchronized between local and remote.

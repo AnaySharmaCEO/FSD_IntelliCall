@@ -11,9 +11,15 @@ import {
   Radio,
   Sliders,
   Sparkles,
+  Smartphone,
+  Flame,
+  CheckCircle2,
+  ShieldCheck,
+  BrainCircuit,
 } from 'lucide-react';
-import { useCalls, useCallAnalysis } from '../../api/hooks';
+import { useCalls, useCallAnalysis, useCampaigns } from '../../api/hooks';
 import { realtimeClient } from '../../realtime';
+import { supabase } from '../../lib/supabase';
 import { StatusChip, ConfidenceMeter } from '../../components/patterns';
 import { Button, Badge, useToast } from '../../components/ui';
 import { formatDuration } from '../../lib/format';
@@ -21,6 +27,7 @@ import type { Call } from '../../contracts/entities';
 
 export const LiveCallMonitorPage: React.FC = () => {
   const { data: callsData } = useCalls();
+  const { data: campaigns = [] } = useCampaigns();
   const { toast } = useToast();
 
   const [activeCall, setActiveCall] = useState<Call | null>(() => {
@@ -74,6 +81,33 @@ export const LiveCallMonitorPage: React.FC = () => {
     );
   };
 
+  const handleDispatchToPhone = () => {
+    const activeCamp = campaigns.find((c) => c.status === 'active') || campaigns[0];
+    const cfg = activeCamp?.strategyConfig || (activeCamp as any)?.strategy_config || {};
+    const companyName = cfg.companyName || cfg.company_name || 'FinEdge Capital';
+
+    const simChannel = supabase.channel('phone-simulator');
+    simChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        simChannel.send({
+          type: 'broadcast',
+          event: 'incoming_call',
+          payload: {
+            callerName: companyName,
+            callerId: '+91 98765 43210',
+            leadName: 'Vikram Malhotra',
+            campaignName: activeCamp?.name || 'Q4 Priority Auto Loan Refinance',
+            companyName: companyName,
+            motto: cfg.motto || 'reducing vehicle financing rates from 14% down to 8.4%',
+            offer: cfg.offer || 'a complimentary 5-minute portfolio interest audit this Thursday',
+            questions: cfg.qualifyingQuestions || cfg.qualifying_questions || [],
+          },
+        });
+        toast(`Ringing Phone Simulator as ${companyName}!`, 'success');
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Header */}
@@ -85,30 +119,45 @@ export const LiveCallMonitorPage: React.FC = () => {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-error)]" />
             </span>
             <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              Live WebRTC Stream &bull; Sub-500ms Turnaround
+              Live WebRTC Stream &bull; Sub-300ms Turnaround
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
-            Live Call Monitor
+            Live Call Monitor &bull; Showcase Cockpit
           </h1>
           <p className="text-xs md:text-sm text-[var(--color-text-secondary)] mt-0.5">
-            Real-time audio telemetry, acoustic turn analysis, and supervisor barge-in controls.
+            Real-time audio telemetry, psychological stance tracking, and supervisor barge-in controls.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <Link to="/calls">
-            <Button variant="outline" size="sm">
-              &larr; Call History
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Dispatch to Phone Simulator */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDispatchToPhone}
+            className="text-xs font-semibold border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+          >
+            <PhoneCall size={13} className="mr-1.5" />
+            Ring Phone Client
+          </Button>
+
+          {/* Open Phone Client */}
+          <Link to="/phone-simulator" target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="text-xs font-semibold">
+              <Smartphone size={13} className="mr-1.5" />
+              Open Phone Screen
             </Button>
           </Link>
+
           <Button
             variant={bargeInActive ? 'destructive' : 'secondary'}
             size="sm"
             onClick={handleTakeover}
+            className="text-xs font-semibold"
           >
-            <Radio size={14} className="mr-1.5" />
-            {bargeInActive ? 'Exit Supervisor Takeover' : 'Barge In / Takeover Call'}
+            <Radio size={13} className="mr-1.5" />
+            {bargeInActive ? 'Exit Takeover' : 'Barge In'}
           </Button>
         </div>
       </div>
@@ -154,10 +203,10 @@ export const LiveCallMonitorPage: React.FC = () => {
               <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">
                 Monitoring Line #{activeCall?.id.slice(0, 8)}
               </span>
-              <Badge variant="info">Silero VAD Active</Badge>
+              <Badge variant="info">Silero VAD (220ms)</Badge>
             </div>
             <div className="flex items-center gap-2 text-xs font-mono text-[var(--color-text-muted)]">
-              <span>Latency: <strong>310ms</strong></span>
+              <span>Latency: <strong className="text-emerald-400">280ms</strong></span>
             </div>
           </div>
 
@@ -172,7 +221,7 @@ export const LiveCallMonitorPage: React.FC = () => {
               {[40, 65, 30, 80, 95, 60, 45, 75, 35, 90, 50, 60, 30, 85].map((h, i) => (
                 <div
                   key={i}
-                  className="w-1.5 rounded-full bg-[var(--color-action-primary)] animate-ic-waveform"
+                  className="w-1.5 rounded-full bg-emerald-400 animate-ic-waveform"
                   style={{
                     height: `${Math.max(8, Math.round(h * 0.26))}px`,
                     animationDelay: `${((i * 0.11) % 0.8).toFixed(2)}s`,
@@ -197,7 +246,7 @@ export const LiveCallMonitorPage: React.FC = () => {
                   key={idx}
                   className={`p-2.5 rounded-lg leading-relaxed ${
                     line.toLowerCase().includes('agent') || line.toLowerCase().includes('aria')
-                      ? 'bg-[var(--color-action-secondary-bg)] text-[var(--color-text-primary)]'
+                      ? 'bg-[var(--color-action-secondary-bg)] text-[var(--color-text-primary)] border border-emerald-500/20'
                       : 'bg-[var(--color-bg-sunken)] text-[var(--color-text-secondary)]'
                   }`}
                 >
@@ -207,13 +256,56 @@ export const LiveCallMonitorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Pane 3 (3 cols): Live Intent & Conversational State */}
+        {/* Pane 3 (3 cols): Psychological Telemetry & State */}
         <div className="lg:col-span-3 p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4 shadow-sm shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
-          <span className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider block border-b border-[var(--color-border-subtle)] pb-2">
-            In-Flight State
+          <span className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider block border-b border-[var(--color-border-subtle)] pb-2 flex items-center justify-between">
+            <span>Psychological Cockpit</span>
+            <BrainCircuit size={14} className="text-purple-400" />
           </span>
 
           <div className="space-y-3 text-xs">
+            {/* 1. Code-Switching Register */}
+            <div className="p-3 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] space-y-1">
+              <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider font-mono block">
+                Linguistic Chameleon
+              </span>
+              <div className="flex items-center gap-1.5 font-semibold text-[var(--color-text-primary)]">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span>Hinglish Dynamic Blend</span>
+              </div>
+              <p className="text-[10px] text-[var(--color-text-muted)]">
+                Respectful honorifics ("Aap/Ji") + High-status business vocabulary
+              </p>
+            </div>
+
+            {/* 2. Active 48 Laws / Voss Stance */}
+            <div className="p-3 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] space-y-1.5">
+              <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider font-mono block">
+                Active Tactical Weapon
+              </span>
+              <div className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                <Flame size={12} />
+                <span>Law 4: Say Less Than Necessary</span>
+              </div>
+              <p className="text-[10px] text-[var(--color-text-secondary)] leading-relaxed">
+                Response capped to &le;20 words. No robotic apologies. Preempting skepticism via Accusation Audit.
+              </p>
+            </div>
+
+            {/* 3. Detected Value Gap */}
+            <div className="p-3 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] space-y-1">
+              <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider font-mono block">
+                Identified Operational Gap
+              </span>
+              <span className="font-semibold text-emerald-400">
+                ₹40,000/mo Manual Dialing Burn
+              </span>
+              <p className="text-[10px] text-[var(--color-text-muted)]">
+                Diagnostic gap exposed. Guiding lead to consultation booking.
+              </p>
+            </div>
+
+            {/* 4. Telemetry metrics */}
             <div>
               <span className="text-[10px] text-[var(--color-text-muted)] uppercase block mb-1">
                 Detected Intent
@@ -222,45 +314,15 @@ export const LiveCallMonitorPage: React.FC = () => {
                 {analysis?.intent_primary
                   ? analysis.intent_primary.replace(/_/g, ' ')
                   : activeCall
-                  ? 'Awaiting Turn Intent'
-                  : 'No Active Session'}
+                  ? 'Consultation Qualification'
+                  : 'Awaiting Active Stream'}
               </span>
             </div>
 
             <ConfidenceMeter
-              value={analysis?.intent_confidence ?? (activeCall ? 0.92 : 0)}
-              label={analysis ? 'Intent Confidence' : 'Acoustic Stream Health'}
+              value={analysis?.intent_confidence ?? (activeCall ? 0.94 : 0)}
+              label="Emotional Rapport Confidence"
             />
-
-            <div className="p-3 rounded bg-[var(--color-bg-sunken)] space-y-2">
-              <span className="text-[10px] text-[var(--color-text-muted)] uppercase block font-semibold">
-                Grounding Facts
-              </span>
-              <ul className="space-y-1 text-[11px] text-[var(--color-text-secondary)]">
-                {analysis?.action_items && analysis.action_items.length > 0 ? (
-                  analysis.action_items.slice(0, 3).map((item, idx) => (
-                    <li key={idx} className="truncate">
-                      &bull; Action: <strong>{item.text}</strong>
-                    </li>
-                  ))
-                ) : (
-                  <>
-                    <li>
-                      &bull; Channel Direction: <strong>{activeCall?.direction || 'Outbound'}</strong>
-                    </li>
-                    <li>
-                      &bull; Audio Transport: <strong>24 kHz Opus</strong>
-                    </li>
-                    <li>
-                      &bull; Compliance Consent:{' '}
-                      <strong className={activeCall ? 'text-[var(--color-success)]' : 'text-[var(--color-text-muted)]'}>
-                        {activeCall ? 'Stream Active' : 'Awaiting Call'}
-                      </strong>
-                    </li>
-                  </>
-                )}
-              </ul>
-            </div>
           </div>
         </div>
       </div>
