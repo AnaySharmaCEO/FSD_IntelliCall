@@ -10,6 +10,9 @@ import {
   Edit,
   Mic,
   MessageSquare,
+  ShieldAlert,
+  Zap,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   useAgents,
@@ -45,12 +48,23 @@ export const AgentsPage: React.FC = () => {
 
   // Form State
   const [name, setName] = useState('');
-  const [voice, setVoice] = useState('Puck');
+  const [roleTitle, setRoleTitle] = useState('Senior Growth Consultant');
+  const [voice, setVoice] = useState<'Aoede' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir'>('Aoede');
   const [language, setLanguage] = useState('en-IN');
-  const [temperature, setTemperature] = useState(0.3);
+  const [temperature, setTemperature] = useState(0.7);
   const [speed, setSpeed] = useState(1.0);
-  const [greeting, setGreeting] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
+  const [brevityWords, setBrevityWords] = useState(25);
+  const [communicationStyle, setCommunicationStyle] = useState('consultative');
+  const [greeting, setGreeting] = useState('Namaste, this is {{agent_name}} calling. Do you have a quick minute?');
+  const [systemPrompt, setSystemPrompt] = useState(
+    'You are an elite conversational growth consultant. Speak like an experienced professional on a live phone call — crisp, conversational, and direct.'
+  );
+
+  // Psychological tactics state
+  const [vossEmpathy, setVossEmpathy] = useState(true);
+  const [law4Brevity, setLaw4Brevity] = useState(true);
+  const [noOrientedClose, setNoOrientedClose] = useState(true);
+  const [linguisticMirroring, setLinguisticMirroring] = useState(true);
 
   // Voice Test Simulator Drawer State
   const [testDrawerOpen, setTestDrawerOpen] = useState(false);
@@ -65,58 +79,97 @@ export const AgentsPage: React.FC = () => {
   const openCreateModal = () => {
     setEditingAgent(null);
     setName('');
-    setVoice('Puck');
+    setRoleTitle('Senior Refinancing Specialist');
+    setVoice('Aoede');
     setLanguage('en-IN');
-    setTemperature(0.3);
+    setTemperature(0.7);
     setSpeed(1.0);
-    setGreeting('Hello, this is {{agent_name}} calling from Apex Financial.');
-    setSystemPrompt('You are a professional financial specialist.');
+    setBrevityWords(25);
+    setCommunicationStyle('consultative');
+    setGreeting('Namaste, this is {{agent_name}} calling. Do you have a quick minute?');
+    setSystemPrompt(
+      'You are an elite conversational growth consultant. Speak like an experienced professional on a live phone call — crisp, conversational, and direct.'
+    );
+    setVossEmpathy(true);
+    setLaw4Brevity(true);
+    setNoOrientedClose(true);
+    setLinguisticMirroring(true);
     setModalOpen(true);
   };
 
   const openEditModal = (agent: Agent) => {
     setEditingAgent(agent);
     setName(agent.name);
-    setVoice(agent.voice);
-    setLanguage(agent.language);
-    setTemperature(agent.voice_temperature);
-    setSpeed(agent.voice_speed);
-    setGreeting(agent.greeting);
-    setSystemPrompt(agent.system_prompt);
+    setRoleTitle(agent.roleTitle || (agent as any).role_title || 'Senior Growth Consultant');
+    const v = agent.voiceModel || (agent as any).voice_model || agent.voice || 'Aoede';
+    setVoice(v as any);
+    setLanguage(agent.language || agent.primaryLanguage || 'en-IN');
+    setTemperature(Number(agent.voiceTemperature ?? (agent as any).voice_temperature ?? 0.7));
+    setSpeed(Number(agent.voiceSpeed ?? (agent as any).voice_speed ?? 1.0));
+    setBrevityWords(Number(agent.brevityWords ?? (agent as any).brevity_words ?? 25));
+    setCommunicationStyle(agent.communicationStyle || (agent as any).communication_style || 'consultative');
+    setGreeting(agent.greeting || 'Namaste, this is {{agent_name}} calling. Do you have a quick minute?');
+    setSystemPrompt(agent.systemPrompt || (agent as any).system_prompt || '');
+
+    const tactics = agent.tactics || {};
+    setVossEmpathy(tactics.vossEmpathy ?? (tactics as any).voss_empathy ?? true);
+    setLaw4Brevity(tactics.law4Brevity ?? (tactics as any).law4_brevity ?? true);
+    setNoOrientedClose(tactics.noOrientedClose ?? (tactics as any).no_oriented_close ?? true);
+    setLinguisticMirroring(tactics.linguisticMirroring ?? (tactics as any).linguistic_mirroring ?? true);
     setModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      toast('Agent name is required', 'error');
+      return;
+    }
+
+    const payload = {
+      name: name.trim(),
+      roleTitle: roleTitle.trim(),
+      role_title: roleTitle.trim(),
+      voiceModel: voice,
+      voice_model: voice,
+      voice,
+      language,
+      voiceTemperature: temperature,
+      voice_temperature: temperature,
+      voiceSpeed: speed,
+      voice_speed: speed,
+      brevityWords,
+      brevity_words: brevityWords,
+      communicationStyle,
+      communication_style: communicationStyle,
+      greeting: greeting.trim(),
+      systemPrompt: systemPrompt.trim(),
+      system_prompt: systemPrompt.trim(),
+      tactics: {
+        vossEmpathy,
+        voss_empathy: vossEmpathy,
+        law4Brevity,
+        law4_brevity: law4Brevity,
+        noOrientedClose,
+        no_oriented_close: noOrientedClose,
+        linguisticMirroring,
+        linguistic_mirroring: linguisticMirroring,
+      },
+    };
 
     try {
       if (editingAgent) {
         await updateAgent.mutateAsync({
           id: editingAgent.id,
-          updates: {
-            name,
-            voice,
-            language,
-            voice_temperature: temperature,
-            voice_speed: speed,
-            greeting,
-            system_prompt: systemPrompt,
-          },
+          updates: payload,
         });
-        toast('Agent updated successfully', 'success');
+        toast('Agent configuration updated successfully', 'success');
       } else {
         await createAgent.mutateAsync({
-          name,
-          voice,
-          language,
-          voice_temperature: temperature,
-          voice_speed: speed,
-          greeting,
-          system_prompt: systemPrompt,
+          ...payload,
           status: 'active',
         });
-        toast('New AI agent created', 'success');
+        toast('New AI voice agent created', 'success');
       }
       setModalOpen(false);
     } catch (err: unknown) {
@@ -151,9 +204,9 @@ export const AgentsPage: React.FC = () => {
 
     await voiceSession.connect({
       agent_id: agent.id,
-      voice_id: agent.voice,
-      language: agent.language,
-      temperature: agent.voice_temperature,
+      voice_id: agent.voiceModel || (agent as any).voice_model || agent.voice || 'Aoede',
+      language: agent.language || agent.primaryLanguage || 'en-IN',
+      temperature: Number(agent.voiceTemperature ?? (agent as any).voice_temperature ?? 0.7),
     });
     setVoiceConnected(true);
   };
@@ -172,14 +225,14 @@ export const AgentsPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              Resonology Voice Engine
+              Gemini Live Voice Engine
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
             AI Agent Studio
           </h1>
           <p className="text-xs md:text-sm text-[var(--color-text-secondary)] mt-0.5">
-            Configure conversational personas, voice acoustics, system prompts, and test real-time speech.
+            Configure conversational personas, Gemini Live voices, Law 4 brevity word limits, and negotiation tactics.
           </p>
         </div>
 
@@ -193,7 +246,10 @@ export const AgentsPage: React.FC = () => {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4">
+            <div
+              key={i}
+              className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4"
+            >
               <Skeleton width="40%" height={20} />
               <Skeleton width="100%" height={60} />
               <Skeleton width="60%" height={16} />
@@ -204,7 +260,7 @@ export const AgentsPage: React.FC = () => {
         <EmptyState
           icon={<Bot size={36} />}
           title="No voice personas configured"
-          description="Create your first conversational agent with customized voice and qualification prompts."
+          description="Create your first conversational agent with customized Gemini Live voice, brevity limit, and behavioral tactics."
           action={{
             label: 'Create Agent',
             onClick: openCreateModal,
@@ -212,71 +268,113 @@ export const AgentsPage: React.FC = () => {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {agents.map((agent) => (
-            <div
-              key={agent.id}
-              className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4 shadow-2xs hover:border-[var(--color-border-default)] transition-colors flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-full bg-[var(--color-action-secondary-bg)] text-[var(--color-action-primary)] flex items-center justify-center font-bold">
-                      <Bot size={18} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-[14px] text-[var(--color-text-primary)]">
-                        {agent.name}
-                      </h3>
-                      <span className="text-[11px] font-mono text-[var(--color-text-muted)]">
-                        {agent.language} &bull; {agent.voice}
-                      </span>
-                    </div>
-                  </div>
-                  <StatusChip status={agent.status} type="agent" />
-                </div>
+          {agents.map((agent) => {
+            const role = agent.roleTitle || (agent as any).role_title || 'Growth Consultant';
+            const voiceId = agent.voiceModel || (agent as any).voice_model || agent.voice || 'Aoede';
+            const brevity = Number(agent.brevityWords || (agent as any).brevity_words) || 25;
+            const tactics = agent.tactics || {};
 
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 rounded bg-[var(--color-bg-sunken)]">
-                    <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase block mb-1">
-                      System Directive
+            return (
+              <div
+                key={agent.id}
+                className="p-6 rounded-[var(--radius-lg)] bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] space-y-4 shadow-2xs hover:border-[var(--color-border-default)] transition-colors flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-full bg-[var(--color-action-secondary-bg)] text-[var(--color-action-primary)] flex items-center justify-center font-bold">
+                        <Bot size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[15px] text-[var(--color-text-primary)]">
+                          {agent.name}
+                        </h3>
+                        <span className="text-[12px] font-medium text-[var(--color-text-secondary)] block">
+                          {role}
+                        </span>
+                      </div>
+                    </div>
+                    <StatusChip status={agent.status} type="agent" />
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                      <Volume2 size={10} /> {voiceId}
                     </span>
-                    <p className="text-[var(--color-text-secondary)] line-clamp-2 leading-relaxed">
-                      {agent.system_prompt || 'Standard qualification prompt.'}
-                    </p>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                      {agent.language || agent.primaryLanguage || 'en-IN'}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                      Max {brevity} words
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-[var(--color-text-muted)] pt-1">
-                    <div>Temp: <strong className="text-[var(--color-text-primary)]">{agent.voice_temperature}</strong></div>
-                    <div>Speed: <strong className="text-[var(--color-text-primary)]">{agent.voice_speed}x</strong></div>
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2.5 rounded bg-[var(--color-bg-sunken)]">
+                      <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase block mb-1">
+                        System Directive
+                      </span>
+                      <p className="text-[var(--color-text-secondary)] line-clamp-2 leading-relaxed">
+                        {agent.systemPrompt || (agent as any).system_prompt || 'Standard qualification prompt.'}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-1.5">
+                      <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase block">
+                        Psychological Tactics
+                      </span>
+                      <div className="flex flex-wrap gap-1 text-[10px]">
+                        {(tactics.vossEmpathy ?? (tactics as any).voss_empathy ?? true) && (
+                          <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">
+                            Voss Empathy
+                          </span>
+                        )}
+                        {(tactics.law4Brevity ?? (tactics as any).law4_brevity ?? true) && (
+                          <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">
+                            Law 4 Brevity
+                          </span>
+                        )}
+                        {(tactics.noOrientedClose ?? (tactics as any).no_oriented_close ?? true) && (
+                          <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">
+                            No-Oriented Close
+                          </span>
+                        )}
+                        {(tactics.linguisticMirroring ?? (tactics as any).linguistic_mirroring ?? true) && (
+                          <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">
+                            Mirroring
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
+                  <Button variant="outline" size="sm" onClick={() => openSimulator(agent)}>
+                    <Play size={13} className="mr-1 text-[var(--color-action-primary)]" />
+                    Test Voice
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEditModal(agent)}
+                      className="p-1.5 rounded hover:bg-[var(--color-bg-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer transition-colors"
+                      title="Edit agent"
+                    >
+                      <Edit size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(agent.id)}
+                      className="p-1.5 rounded hover:bg-[var(--color-error-bg)] text-[var(--color-text-muted)] hover:text-[var(--color-error)] cursor-pointer transition-colors"
+                      title="Delete agent"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
-
-              <div className="pt-4 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
-                <Button variant="outline" size="sm" onClick={() => openSimulator(agent)}>
-                  <Play size={13} className="mr-1 text-[var(--color-action-primary)]" />
-                  Test Voice
-                </Button>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => openEditModal(agent)}
-                    className="p-1.5 rounded hover:bg-[var(--color-bg-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer transition-colors"
-                    title="Edit agent"
-                  >
-                    <Edit size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(agent.id)}
-                    className="p-1.5 rounded hover:bg-[var(--color-error-bg)] text-[var(--color-text-muted)] hover:text-[var(--color-error)] cursor-pointer transition-colors"
-                    title="Delete agent"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -288,24 +386,34 @@ export const AgentsPage: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <Input
-            label="Agent Name"
-            placeholder="e.g. Aria - Auto Loan Specialist"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Input
+              label="Agent Display Name"
+              placeholder="e.g. Priya, Karan, Maya"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+            <Input
+              label="Role / Title"
+              placeholder="e.g. Senior Refinancing Consultant"
+              value={roleTitle}
+              onChange={(e) => setRoleTitle(e.target.value)}
+              required
+            />
+          </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Select
-              label="Voice Persona"
+              label="Gemini Live Neural Voice"
               value={voice}
-              onChange={(e) => setVoice(e.target.value)}
+              onChange={(e) => setVoice(e.target.value as any)}
               options={[
-                { value: 'Puck', label: 'Puck (Versatile / Natural)' },
-                { value: 'Charon', label: 'Charon (Empathetic Support)' },
-                { value: 'Fenrir', label: 'Fenrir (Authoritative Financial)' },
-                { value: 'Aoede', label: 'Aoede (Warm / Engaging)' },
+                { value: 'Aoede', label: 'Aoede (Warm & Engaging)' },
+                { value: 'Puck', label: 'Puck (Direct & Versatile)' },
+                { value: 'Charon', label: 'Charon (Empathetic & Calm)' },
+                { value: 'Kore', label: 'Kore (Dynamic & Polished)' },
+                { value: 'Fenrir', label: 'Fenrir (Authoritative & Crisp)' },
               ]}
             />
             <Select
@@ -313,57 +421,160 @@ export const AgentsPage: React.FC = () => {
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
               options={[
-                { value: 'en-IN', label: 'English (India)' },
+                { value: 'en-IN', label: 'English (India - Hinglish Mirroring)' },
                 { value: 'hi-IN', label: 'Hindi (India)' },
                 { value: 'en-US', label: 'English (US)' },
               ]}
             />
+            <Select
+              label="Communication Style"
+              value={communicationStyle}
+              onChange={(e) => setCommunicationStyle(e.target.value)}
+              options={[
+                { value: 'consultative', label: 'Consultative (Diagnostic & Listening)' },
+                { value: 'direct', label: 'Direct & Assertive (Quick Value Pitch)' },
+                { value: 'empathetic', label: 'Empathetic (Patient & Supportive)' },
+              ]}
+            />
+          </div>
+
+          <div className="p-3.5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)]/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold text-[var(--color-text-primary)] block">
+                  Robert Greene Law 4: Brevity Limit
+                </span>
+                <span className="text-[11px] text-[var(--color-text-muted)]">
+                  Strictly caps agent speaking turns to keep calls crisp and human.
+                </span>
+              </div>
+              <span className="text-xs font-mono font-bold text-[var(--color-action-primary)] bg-[var(--color-action-secondary-bg)] px-2 py-0.5 rounded">
+                {brevityWords} words max / turn
+              </span>
+            </div>
+            <input
+              type="range"
+              min="15"
+              max="40"
+              step="1"
+              value={brevityWords}
+              onChange={(e) => setBrevityWords(parseInt(e.target.value, 10))}
+              className="w-full accent-[var(--color-action-primary)] cursor-pointer"
+            />
+          </div>
+
+          {/* Negotiation Tactics Checkboxes */}
+          <div className="p-3.5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] space-y-2.5">
+            <span className="text-xs font-semibold text-[var(--color-text-primary)] block">
+              Psychological Tactics & Voice Guardrails
+            </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+              <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-[var(--color-bg-sunken)] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={vossEmpathy}
+                  onChange={(e) => setVossEmpathy(e.target.checked)}
+                  className="mt-0.5 accent-[var(--color-action-primary)] rounded"
+                />
+                <div>
+                  <span className="font-medium text-[var(--color-text-primary)] block">Chris Voss Tactical Empathy</span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">
+                    Labels unspoken objections: "Sounds like you are in the middle of something urgent..."
+                  </span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-[var(--color-bg-sunken)] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={law4Brevity}
+                  onChange={(e) => setLaw4Brevity(e.target.checked)}
+                  className="mt-0.5 accent-[var(--color-action-primary)] rounded"
+                />
+                <div>
+                  <span className="font-medium text-[var(--color-text-primary)] block">Law 4 Brevity Enforcement</span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">
+                    Never recites monologue scripts; prompts prospect to speak 70% of the time.
+                  </span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-[var(--color-bg-sunken)] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={noOrientedClose}
+                  onChange={(e) => setNoOrientedClose(e.target.checked)}
+                  className="mt-0.5 accent-[var(--color-action-primary)] rounded"
+                />
+                <div>
+                  <span className="font-medium text-[var(--color-text-primary)] block">Calibrated 'No'-Oriented Close</span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">
+                    Asks safe 'No' questions: "Would you be opposed to a 5-minute review?"
+                  </span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-[var(--color-bg-sunken)] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={linguisticMirroring}
+                  onChange={(e) => setLinguisticMirroring(e.target.checked)}
+                  className="mt-0.5 accent-[var(--color-action-primary)] rounded"
+                />
+                <div>
+                  <span className="font-medium text-[var(--color-text-primary)] block">Linguistic Mirroring & Hinglish</span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">
+                    Mirrors prospect's exact dialect, respectful Indian business Hinglish or crisp English.
+                  </span>
+                </div>
+              </label>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[13px] font-medium text-[var(--color-text-secondary)] block mb-1">
-                Temperature ({temperature})
+              <label className="text-[12px] font-medium text-[var(--color-text-secondary)] block mb-1">
+                Acoustic Temperature ({temperature})
               </label>
               <input
                 type="range"
-                min="0.0"
+                min="0.1"
                 max="1.0"
                 step="0.05"
                 value={temperature}
                 onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="w-full accent-[var(--color-brand-blue)]"
+                className="w-full accent-[var(--color-action-primary)] cursor-pointer"
               />
             </div>
             <div>
-              <label className="text-[13px] font-medium text-[var(--color-text-secondary)] block mb-1">
-                Voice Speed ({speed}x)
+              <label className="text-[12px] font-medium text-[var(--color-text-secondary)] block mb-1">
+                Voice Cadence Speed ({speed}x)
               </label>
               <input
                 type="range"
                 min="0.8"
-                max="1.4"
+                max="1.3"
                 step="0.05"
                 value={speed}
                 onChange={(e) => setSpeed(parseFloat(e.target.value))}
-                className="w-full accent-[var(--color-brand-blue)]"
+                className="w-full accent-[var(--color-action-primary)] cursor-pointer"
               />
             </div>
           </div>
 
           <Input
-            label="Initial Greeting Phrase"
+            label="Initial Greeting Phrase (use {{agent_name}} variable)"
             value={greeting}
             onChange={(e) => setGreeting(e.target.value)}
-            placeholder="Hello, this is Aria from Apex Financial..."
+            placeholder="Namaste, this is {{agent_name}} calling. Do you have a quick minute?"
           />
 
           <div>
-            <label className="text-[13px] font-medium text-[var(--color-text-secondary)] block mb-1">
-              System Instruction & Qualification Prompt
+            <label className="text-[12px] font-medium text-[var(--color-text-secondary)] block mb-1">
+              Custom Persona Instructions & Guardrails
             </label>
             <textarea
-              rows={4}
+              rows={3}
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="Define behavioral rules, tone, qualification criteria, and objections..."

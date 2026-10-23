@@ -420,3 +420,56 @@
 
 
 
+
+---
+
+### [2026-10-23 06:15:00 +05:30] — Forensic Debugging & Gemini Live Protocol Stabilization
+* **Author:** Anay Sharma <gamingxjanata@gmail.com>
+* **Phase:** Gemini Multimodal Live Audio Stabilization
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Root Cause 1 — Deprecated `mediaChunks` Conflict:** Discovered and eliminated `mediaChunks` payload in `frontend/src/voice/geminiLive.ts`. Per Gemini Live Protocol, `realtimeInput.audio` must be used exclusively.
+  2. **Root Cause 2 — 100ms Framing Accumulator:** Fixed micro-chunk audio fragmentation. Replaced 42ms/2048-frame raw buffer emission with a strict 100ms framing accumulator (`TARGET_CHUNK_SIZE = 1600` samples at 16kHz linear PCM), preventing server-side VAD buffer starvation.
+  3. **Root Cause 3 — High-Fidelity Linear Interpolation:** Upgraded audio downsampling from crude box-averaging to linear interpolation downsampler, preserving high-frequency speech formants for speech recognition.
+  4. **Root Cause 4 — Hybrid Client VAD with `audioStreamEnd`:** Implemented client-side RMS tracking (`rms > 0.012`) and speech pause timer (800ms). When speech ends, the client automatically dispatches `{ realtimeInput: { audioStreamEnd: true } }`, instantly committing the user turn and triggering the neural audio response.
+  5. **Root Cause 5 — Protocol-Compliant Handshake:** Deferred microphone capture and audio transmission until Google confirms session readiness with `setupComplete`.
+  6. **Root Cause 6 — Live Subtitle Streams:** Added `inputAudioTranscription: {}` and `outputAudioTranscription: {}` to session setup, enabling live interim subtitles on the phone screen.
+
+---
+
+### [2026-10-23 08:25:00 +05:30] — Remastering AI Agent Studio, Campaign Settings & Dynamic Phone Simulator
+* **Author:** Anay Sharma <gamingxjanata@gmail.com>
+* **Phase:** Dynamic AI Persona & Campaign Architecture Remaster
+* **Branch:** `intermediate_branch`
+* **Summary of Work Done:**
+  1. **Supabase Database Migration (`20261023000001_remaster_agent_and_campaign_settings.sql`):**
+     - Extended `public.agents` with `role_title`, `voice_model`, `brevity_words`, `tactics` (JSONB), `system_prompt`, `greeting`, `voice_speed`, `voice_temperature`, `communication_style`.
+     - Extended `public.campaigns` with `company_name`, `motto`, `offer`, `primary_pain_point`, `value_gap`, `qualification_questions` (JSONB), `objection_playbook` (JSONB), `target_audience`.
+     - Backfilled all existing agent and campaign records from `strategy_config`.
+     - Granted permissions to `authenticated` and `service_role` and notified PostgREST to reload schema cache.
+  2. **TypeScript Contracts & API Client (`frontend/src/contracts/entities.ts` & `frontend/src/api/http/index.ts`):**
+     - Added `AgentTacticsSchema` and extended `AgentSchema` and `CampaignSchema`.
+     - Updated `mapAgentRecord` and `mapCampaignRecord` with bidirectionally safe camelCase and snake_case transformations.
+     - Updated `createAgent`, `updateAgent`, `createCampaign`, and `updateCampaign` to persist all newly introduced persona and campaign fields directly to Supabase.
+  3. **Remastered AI Agent Studio (`frontend/src/features/agents/AgentsPage.tsx`):**
+     - Eliminated all hardcoded names (never hardcoded as "Anay"; fully customizable per agent in UI).
+     - Added role / title input (e.g. "Senior Refinancing Specialist", "Commercial Underwriting Director").
+     - Added all 5 Gemini Live neural voices (`Aoede`, `Puck`, `Charon`, `Kore`, `Fenrir`).
+     - Added Robert Greene Law 4 Brevity slider (15 to 40 words max per turn) to ensure crisp, human cadence.
+     - Added toggles for psychological tactics: Chris Voss Tactical Empathy, Law 4 Brevity enforcement, Calibrated 'No'-Oriented Closes, and Linguistic Mirroring.
+     - Upgraded agent cards to display role title, neural voice badge, language, brevity cap, and tactical badges.
+  4. **Remastered Campaign Settings (`frontend/src/features/campaigns/CampaignsPage.tsx`):**
+     - Added Objection Handling Playbook configuration for 3 primary objection categories: Busy/Driving, Skeptical/Source, and Not Interested.
+     - Updated strategy presets (Auto Loan Refinance, Inbound B2B SaaS, Titanium Card Upgrade) with matching objection scripts.
+     - Persisted campaign configurations to both top-level columns and `strategy_config`.
+  5. **Remastered Phone Simulator (`frontend/src/features/calls/PhoneSimulatorPage.tsx`):**
+     - Replaced static/teleprompter script and hardcoded "Anay" identity with 3 dynamic standby selectors:
+       * **Select AI Voice Agent** (from `agents`)
+       * **Select Outbound Campaign** (from `campaigns`)
+       * **Select Prospect / Lead Target** (from `leads`)
+     - Standby summary card dynamically updates to show chosen Agent, Neural Voice, Brevity Limit, Brand, and Target.
+     - In `handleAnswerCall()`, dynamically synthesizes the Gemini Live `systemInstruction` at runtime combining the selected Agent persona/tactics/voice, Campaign brand/motto/offer/questions/objection playbook, and Lead's real details.
+     - In-call feed dynamically shows `${agentName} (${company})` as the caller header and dynamic quick-reply fallback chips.
+     - `persistAppointmentToCRM()` associates the created appointment and completed call row with the exact selected `agent_id`, `campaign_id`, and `lead_id` in Supabase.
+  6. **Build Verification:**
+     - Verified with `npm --prefix frontend run build` — passed with **0 errors** (2,279 modules transformed cleanly in 5.31s).

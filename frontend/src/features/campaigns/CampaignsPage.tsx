@@ -15,6 +15,7 @@ import {
   Sparkles,
   HelpCircle,
   Lightbulb,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   useCampaigns,
@@ -66,6 +67,17 @@ export const CampaignsPage: React.FC = () => {
   const [question1, setQuestion1] = useState('How many inbound leads does your sales team handle per week?');
   const [question2, setQuestion2] = useState('Are you following up manually or through an automated pipeline?');
 
+  // Objection Handling Playbook
+  const [objectionBusy, setObjectionBusy] = useState(
+    'Bilkul samajh sakta hoon ji. Should I connect tomorrow afternoon, or drop a quick WhatsApp?'
+  );
+  const [objectionSkeptical, setObjectionSkeptical] = useState(
+    'Aapne hamare partner network par rate inquiry check ki thi. Main bas confirm kar raha tha ki aapko genuine details mili ya nahi.'
+  );
+  const [objectionNotInterested, setObjectionNotInterested] = useState(
+    'Totally understand! Would you be opposed if I just kept your contact handy for when your loan renewal comes up?'
+  );
+
   const applyPreset = (preset: 'loans' | 'saas' | 'cards') => {
     if (preset === 'loans') {
       setName('Q4 Priority Auto Loan Refinance');
@@ -76,6 +88,9 @@ export const CampaignsPage: React.FC = () => {
       setValueGap('₹4,200/month in avoidable interest overpayments');
       setQuestion1('What interest rate are you currently paying on your primary vehicle loan?');
       setQuestion2('Has your vehicle been registered for over 12 months with clean repayment?');
+      setObjectionBusy('Bilkul samajh sakta hoon ji. Should I connect tomorrow afternoon, or drop a quick WhatsApp?');
+      setObjectionSkeptical('Aapne hamare partner network par rate comparison check kiya tha. Main bas confirm kar raha tha ki aapko fair rate mila ya nahi.');
+      setObjectionNotInterested('Totally understand! Would you be opposed if I just kept your contact handy for when your loan renewal comes up?');
     } else if (preset === 'saas') {
       setName('Inbound Sales AI Qualification');
       setCompanyName('Resonology AI');
@@ -85,6 +100,9 @@ export const CampaignsPage: React.FC = () => {
       setValueGap('₹45,000/month in burned payroll per manual dialing SDR');
       setQuestion1('How many inbound leads does your sales team handle per week?');
       setQuestion2('Are you following up manually or through an automated pipeline?');
+      setObjectionBusy('Understood! Would tomorrow at 11 AM or 3 PM work better for a brief 2-minute sync?');
+      setObjectionSkeptical('You requested information regarding automated sales pipeline workflows on our website.');
+      setObjectionNotInterested('No problem at all. Would you be opposed if I emailed you our 1-page ROI benchmark?');
     } else {
       setName('Titanium Wealth Credit Card Upgrade');
       setCompanyName('Apex Financial');
@@ -94,6 +112,9 @@ export const CampaignsPage: React.FC = () => {
       setValueGap('₹35,000 yearly lost to transaction markup');
       setQuestion1('Do you currently travel internationally or make foreign currency payments?');
       setQuestion2('Would having complimentary unlimited airport lounge access be valuable?');
+      setObjectionBusy('Completely understand. Should I follow up via WhatsApp with the upgrade summary?');
+      setObjectionSkeptical('This is exclusively for our priority account holders eligible for pre-approved lifetime waivers.');
+      setObjectionNotInterested('Understood! Would you mind if we hold the zero-annual-fee tier on your file until month-end?');
     }
     toast('Loaded campaign strategy template', 'info');
   };
@@ -133,14 +154,20 @@ export const CampaignsPage: React.FC = () => {
 
     // Extract strategy config
     const cfg = camp.strategyConfig || (camp as any).strategy_config || {};
-    setCompanyName(cfg.companyName || cfg.company_name || 'IntelliCall');
-    setMotto(cfg.motto || '');
-    setOffer(cfg.offer || '');
-    setPrimaryPainPoint(cfg.primaryPainPoint || cfg.primary_pain_point || '');
-    setValueGap(cfg.valueGap || cfg.value_gap_statement || cfg.value_gap || '');
-    const questions = cfg.qualifyingQuestions || cfg.qualifying_questions || [];
+    setCompanyName(camp.companyName || (camp as any).company_name || cfg.companyName || cfg.company_name || 'Resonology AI');
+    setMotto(camp.motto || cfg.motto || '');
+    setOffer(camp.offer || cfg.offer || '');
+    setPrimaryPainPoint(camp.primaryPainPoint || (camp as any).primary_pain_point || cfg.primaryPainPoint || cfg.primary_pain_point || '');
+    setValueGap(camp.valueGap || (camp as any).value_gap || cfg.valueGap || cfg.value_gap_statement || '');
+    
+    const questions = camp.qualificationQuestions || (camp as any).qualification_questions || cfg.qualifyingQuestions || cfg.qualifying_questions || [];
     setQuestion1(questions[0] || '');
     setQuestion2(questions[1] || '');
+
+    const playbook = camp.objectionPlaybook || (camp as any).objection_playbook || cfg.objectionPlaybook || cfg.objection_playbook || {};
+    setObjectionBusy(playbook.busy || 'Bilkul samajh sakta hoon ji. Should I connect tomorrow afternoon, or drop a quick WhatsApp?');
+    setObjectionSkeptical(playbook.skeptical || 'Aapne hamare partner network par rate comparison check kiya tha.');
+    setObjectionNotInterested(playbook.not_interested || 'Totally understand! Would you be opposed if I just kept your contact handy?');
 
     setModalOpen(true);
   };
@@ -177,9 +204,16 @@ export const CampaignsPage: React.FC = () => {
       return;
     }
 
+    const qualificationQuestions = [question1.trim(), question2.trim()].filter(Boolean);
+    const objectionPlaybook = {
+      busy: objectionBusy.trim(),
+      skeptical: objectionSkeptical.trim(),
+      not_interested: objectionNotInterested.trim(),
+    };
+
     const strategyConfig = {
-      company_name: companyName.trim() || 'IntelliCall',
-      companyName: companyName.trim() || 'IntelliCall',
+      company_name: companyName.trim() || 'Resonology AI',
+      companyName: companyName.trim() || 'Resonology AI',
       motto: motto.trim(),
       offer: offer.trim(),
       primary_pain_point: primaryPainPoint.trim(),
@@ -187,41 +221,48 @@ export const CampaignsPage: React.FC = () => {
       value_gap_statement: valueGap.trim(),
       value_gap: valueGap.trim(),
       valueGap: valueGap.trim(),
-      qualifying_questions: [question1.trim(), question2.trim()].filter(Boolean),
-      qualifyingQuestions: [question1.trim(), question2.trim()].filter(Boolean),
+      qualifying_questions: qualificationQuestions,
+      qualifyingQuestions: qualificationQuestions,
+      objection_playbook: objectionPlaybook,
+      objectionPlaybook: objectionPlaybook,
+    };
+
+    const payload = {
+      name: name.trim(),
+      agent_id: agentId || undefined,
+      daily_budget: Number(dailyBudget),
+      concurrency_limit: Number(concurrencyLimit),
+      calling_hours_start: callingStart,
+      calling_hours_end: callingEnd,
+      strategy,
+      confidence_threshold: Number(confidenceThreshold),
+      company_name: companyName.trim(),
+      companyName: companyName.trim(),
+      motto: motto.trim(),
+      offer: offer.trim(),
+      primary_pain_point: primaryPainPoint.trim(),
+      primaryPainPoint: primaryPainPoint.trim(),
+      value_gap: valueGap.trim(),
+      valueGap: valueGap.trim(),
+      qualification_questions: qualificationQuestions,
+      qualificationQuestions: qualificationQuestions,
+      objection_playbook: objectionPlaybook,
+      objectionPlaybook: objectionPlaybook,
+      strategy_config: strategyConfig,
+      strategyConfig,
     };
 
     try {
       if (editingCampaign) {
         await updateCampaign.mutateAsync({
           id: editingCampaign.id,
-          updates: {
-            name: name.trim(),
-            agent_id: agentId || undefined,
-            daily_budget: Number(dailyBudget),
-            concurrency_limit: Number(concurrencyLimit),
-            calling_hours_start: callingStart,
-            calling_hours_end: callingEnd,
-            strategy,
-            confidence_threshold: Number(confidenceThreshold),
-            strategy_config: strategyConfig,
-            strategyConfig,
-          } as any,
+          updates: payload as any,
         });
         toast('Campaign updated successfully', 'success');
       } else {
         await createCampaign.mutateAsync({
-          name: name.trim(),
-          agent_id: agentId || undefined,
-          daily_budget: Number(dailyBudget),
-          concurrency_limit: Number(concurrencyLimit),
-          calling_hours_start: callingStart,
-          calling_hours_end: callingEnd,
-          strategy,
-          confidence_threshold: Number(confidenceThreshold),
+          ...payload,
           status: 'active',
-          strategy_config: strategyConfig,
-          strategyConfig,
         } as any);
         toast('New campaign launched', 'success');
       }
@@ -298,10 +339,10 @@ export const CampaignsPage: React.FC = () => {
             const windowEnd = (camp as any).calling_hours_end || camp.rules?.windowEnd || '19:00';
             const concurrency = (camp as any).concurrency_limit ?? camp.rules?.concurrency ?? 10;
             const cfg = camp.strategyConfig || (camp as any).strategy_config || {};
-            const compName = cfg.companyName || cfg.company_name;
-            const mottoText = cfg.motto;
-            const offerText = cfg.offer;
-            const questions = cfg.qualifyingQuestions || cfg.qualifying_questions || [];
+            const compName = camp.companyName || (camp as any).company_name || cfg.companyName || cfg.company_name;
+            const mottoText = camp.motto || cfg.motto;
+            const offerText = camp.offer || cfg.offer;
+            const questions = camp.qualificationQuestions || (camp as any).qualification_questions || cfg.qualifyingQuestions || cfg.qualifying_questions || [];
 
             return (
               <div
@@ -521,13 +562,45 @@ export const CampaignsPage: React.FC = () => {
             />
           </div>
 
+          {/* Objection Playbook Configuration */}
+          <div className="p-3.5 rounded-[var(--radius-md)] bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] space-y-3">
+            <span className="text-xs font-semibold text-[var(--color-text-primary)] flex items-center gap-1.5">
+              <ShieldAlert size={14} className="text-emerald-400" />
+              <span>Objection Handling Playbook (Psychological Reframes)</span>
+            </span>
+
+            <Input
+              label="When Prospect is Busy / Driving / In a Hurry"
+              placeholder="Bilkul samajh sakta hoon ji. Should I connect tomorrow afternoon, or drop a quick WhatsApp?"
+              value={objectionBusy}
+              onChange={(e) => setObjectionBusy(e.target.value)}
+            />
+
+            <Input
+              label="When Prospect is Skeptical ('Who gave you my number?')"
+              placeholder="Aapne hamare partner network par inquiry check ki thi..."
+              value={objectionSkeptical}
+              onChange={(e) => setObjectionSkeptical(e.target.value)}
+            />
+
+            <Input
+              label="When Prospect says 'Not Interested'"
+              placeholder="Totally understand! Would you be opposed if I just kept your contact handy...?"
+              value={objectionNotInterested}
+              onChange={(e) => setObjectionNotInterested(e.target.value)}
+            />
+          </div>
+
           <Select
             label="Assign AI Voice Agent"
             value={agentId}
             onChange={(e) => setAgentId(e.target.value)}
             options={[
               { value: '', label: 'Unassigned (None)' },
-              ...agents.map((a) => ({ value: a.id, label: `${a.name} (${(a as any).language || 'Hinglish'})` })),
+              ...agents.map((a) => ({
+                value: a.id,
+                label: `${a.name} (${a.roleTitle || (a as any).role_title || 'Consultant'} • ${a.voiceModel || (a as any).voice_model || a.voice || 'Aoede'})`,
+              })),
             ]}
           />
 

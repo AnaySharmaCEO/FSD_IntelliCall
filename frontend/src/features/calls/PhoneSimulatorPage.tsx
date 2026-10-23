@@ -18,18 +18,23 @@ import {
   Key,
   Flame,
   Settings,
+  Bot,
+  Megaphone,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
-import { apiClient } from '../../api/hooks';
+import { apiClient, useAgents, useCampaigns, useLeads } from '../../api/hooks';
 import { queryKeys } from '../../api/keys';
 import { GeminiLiveSession } from '../../voice/geminiLive';
+import type { Agent, Campaign, Lead } from '../../contracts/entities';
 
 type CallState = 'standby' | 'ringing' | 'connected' | 'ended';
 
 interface IncomingCallPayload {
   callId?: string;
+  agentId?: string;
+  campaignId?: string;
   callerName?: string;
   callerId?: string;
   leadName?: string;
@@ -44,21 +49,44 @@ interface IncomingCallPayload {
 export const PhoneSimulatorPage: React.FC = () => {
   const queryClient = useQueryClient();
 
+  // Load available entities from database
+  const { data: agents = [] } = useAgents();
+  const { data: campaigns = [] } = useCampaigns();
+  const { data: leadsResult } = useLeads({ pageSize: 50 });
+  const leads = leadsResult?.data || [];
+
+  // Standby interactive configuration selectors
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
+  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
+
+  // Auto-select first items once queries resolve if not yet chosen
+  useEffect(() => {
+    if (!selectedAgentId && agents.length > 0) {
+      setSelectedAgentId(agents[0].id);
+    }
+  }, [agents, selectedAgentId]);
+
+  useEffect(() => {
+    if (!selectedCampaignId && campaigns.length > 0) {
+      setSelectedCampaignId(campaigns[0].id);
+    }
+  }, [campaigns, selectedCampaignId]);
+
+  useEffect(() => {
+    if (!selectedLeadId && leads.length > 0) {
+      setSelectedLeadId(leads[0].id);
+    }
+  }, [leads, selectedLeadId]);
+
+  // Derived selected entities
+  const selectedAgent: Agent | undefined = agents.find((a) => a.id === selectedAgentId) || agents[0];
+  const selectedCampaign: Campaign | undefined = campaigns.find((c) => c.id === selectedCampaignId) || campaigns[0];
+  const selectedLead: Lead | undefined = leads.find((l) => l.id === selectedLeadId) || leads[0];
+
   // Call States
   const [callState, setCallState] = useState<CallState>('standby');
-  const [callData, setCallData] = useState<IncomingCallPayload>({
-    callerName: 'FinEdge Capital',
-    callerId: '+91 98765 43210',
-    leadName: 'Vikram Malhotra',
-    campaignName: 'Q4 Priority Auto Loan Refinance',
-    companyName: 'FinEdge Capital',
-    motto: 'reducing vehicle financing rates from 14% down to 8.4%',
-    offer: 'a complimentary 5-minute portfolio interest audit this Thursday',
-    questions: [
-      'What interest rate are you currently paying on your primary vehicle loan?',
-      'Has your vehicle been registered for over 12 months with clean repayment?',
-    ],
-  });
+  const [callData, setCallData] = useState<IncomingCallPayload>({});
 
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -82,9 +110,9 @@ export const PhoneSimulatorPage: React.FC = () => {
   });
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [tempApiKeyInput, setTempApiKeyInput] = useState('');
-  const [geminiVoice, setGeminiVoice] = useState<'Aoede' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir'>('Aoede');
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [connectionErrorMsg, setConnectionErrorMsg] = useState<string | null>(null);
+  const [liveInterimTranscript, setLiveInterimTranscript] = useState<string>('');
 
   // Audio & Hardware Refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -109,31 +137,35 @@ export const PhoneSimulatorPage: React.FC = () => {
     callDataRef.current = callData;
   }, [callData]);
 
-  // Lead and Company resolved props
-  const leadFirstName = (callData.leadName || 'Vikram').split(' ')[0];
-  const company = callData.companyName || callData.callerName || 'FinEdge Capital';
-  const motto = callData.motto || 'reducing vehicle financing rates from 14% down to 8.4%';
-  const offer = callData.offer || 'a complimentary 5-minute portfolio interest audit this Thursday';
-  const q1 = callData.questions?.[0] || 'What interest rate are you currently paying on your primary vehicle loan?';
+  // Dynamically resolved properties based on currently selected entities
+  const agentName = selectedAgent?.name || 'Aria';
+  const agentRole = selectedAgent?.roleTitle || (selectedAgent as any)?.role_title || selectedAgent?.objective || 'Senior Growth Consultant';
+  const agentVoice = ((selectedAgent?.voiceModel || (selectedAgent as any)?.voice_model || selectedAgent?.voice || 'Aoede') as 'Aoede' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir');
+  const brevityWords = Number(selectedAgent?.brevityWords || (selectedAgent as any)?.brevity_words) || 25;
+  const tactics = selectedAgent?.tactics || {};
 
-  // Fallback: Populate default leadId from Supabase if not present
-  useEffect(() => {
-    supabase
-      .from('leads')
-      .select('id, name, company')
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data && !callData.leadId) {
-          setCallData((prev) => ({
-            ...prev,
-            leadId: prev.leadId || data.id,
-            leadName: prev.leadId ? prev.leadName : (data.name || prev.leadName),
-            companyName: prev.leadId ? prev.companyName : (data.company || prev.companyName),
-          }));
-        }
-      });
-  }, []);
+  const company =
+    callData.companyName ||
+    selectedCampaign?.companyName ||
+    (selectedCampaign as any)?.company_name ||
+    selectedCampaign?.strategyConfig?.companyName ||
+    selectedCampaign?.strategyConfig?.company_name ||
+    'Resonology AI';
+
+  const motto =
+    callData.motto ||
+    selectedCampaign?.motto ||
+    selectedCampaign?.strategyConfig?.motto ||
+    'qualifying high-intent prospects';
+
+  const offer =
+    callData.offer ||
+    selectedCampaign?.offer ||
+    selectedCampaign?.strategyConfig?.offer ||
+    'a complimentary 10-minute discovery review';
+
+  const leadName = callData.leadName || selectedLead?.name || 'Prospect';
+  const leadFirstName = leadName.split(' ')[0] || 'Sir';
 
   // -------------------------------------------------------------
   // Web Audio Ringtone Generator
@@ -230,12 +262,14 @@ export const PhoneSimulatorPage: React.FC = () => {
       .on('broadcast', { event: 'incoming_call' }, ({ payload }) => {
         setCallData({
           callId: payload?.callId,
-          callerName: payload?.callerName || payload?.companyName || 'FinEdge Capital',
+          agentId: payload?.agentId,
+          campaignId: payload?.campaignId,
+          callerName: payload?.callerName || payload?.companyName || 'Resonology AI',
           callerId: payload?.callerId || '+91 98765 43210',
-          leadName: payload?.leadName || 'Vikram Malhotra',
+          leadName: payload?.leadName || 'Prospect',
           leadId: payload?.leadId,
           campaignName: payload?.campaignName,
-          companyName: payload?.companyName || payload?.callerName || 'FinEdge Capital',
+          companyName: payload?.companyName || payload?.callerName || 'Resonology AI',
           motto: payload?.motto,
           offer: payload?.offer,
           questions: payload?.questions,
@@ -278,7 +312,7 @@ export const PhoneSimulatorPage: React.FC = () => {
     setPersistStatus('saving');
     try {
       const activeCallData = callDataRef.current;
-      let targetLeadId = activeCallData.leadId;
+      const targetLeadId = activeCallData.leadId || selectedLead?.id;
       let targetOrgId: string | null = null;
 
       if (!targetLeadId) {
@@ -289,7 +323,6 @@ export const PhoneSimulatorPage: React.FC = () => {
           .maybeSingle();
 
         if (fallbackLead) {
-          targetLeadId = fallbackLead.id;
           targetOrgId = fallbackLead.organization_id;
         }
       } else {
@@ -343,18 +376,18 @@ export const PhoneSimulatorPage: React.FC = () => {
           .update({
             status: 'meeting_booked',
             stage_entered_at: new Date().toISOString(),
-            next_action: `Portfolio audit confirmed for ${resolvedDayTime}`,
+            next_action: `Appointment locked with ${agentName} (${company}) for ${resolvedDayTime}`,
             last_activity_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq('id', targetLeadId);
 
-        // 3. Update Call row if Call ID exists
-        if (activeCallData.callId) {
-          const transcriptText = transcriptRef.current
-            .map((t) => `${t.speaker.toUpperCase()}: ${t.text}`)
-            .join('\n');
+        // 3. Update Call row if Call ID exists, or insert new completed call record
+        const transcriptText = transcriptRef.current
+          .map((t) => `${t.speaker.toUpperCase()}: ${t.text}`)
+          .join('\n');
 
+        if (activeCallData.callId) {
           await supabase
             .from('calls')
             .update({
@@ -364,6 +397,18 @@ export const PhoneSimulatorPage: React.FC = () => {
               transcript: transcriptText,
             })
             .eq('id', activeCallData.callId);
+        } else {
+          await supabase.from('calls').insert({
+            organization_id: targetOrgId,
+            lead_id: targetLeadId,
+            agent_id: selectedAgent?.id || activeCallData.agentId || null,
+            campaign_id: selectedCampaign?.id || activeCallData.campaignId || null,
+            status: 'completed',
+            duration_seconds: callDurationRef.current,
+            direction: 'outbound',
+            ended_at: new Date().toISOString(),
+            transcript: transcriptText,
+          });
         }
 
         // 4. Invalidate TanStack Query caches for real-time reactivity
@@ -407,37 +452,96 @@ export const PhoneSimulatorPage: React.FC = () => {
     setPersistStatus('idle');
     setSavedAppointmentId(null);
     await requestWakeLock();
+    setLiveInterimTranscript('');
 
     // Initialize AudioContexts synchronously inside the user gesture
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const inputCtx = new AudioContextClass();
+    let inputCtx: AudioContext;
+    try {
+      inputCtx = new AudioContextClass({ sampleRate: 16000 });
+    } catch {
+      inputCtx = new AudioContextClass();
+    }
     const outputCtx = new AudioContextClass();
     inputCtx.resume().catch(() => {});
     outputCtx.resume().catch(() => {});
 
-    // Build the exact psychological and tactical system instructions
-    const systemInstruction = `
-You are Anay, an elite growth and vehicle loan refinancing consultant calling from ${company}.
-You are conducting a live, high-stakes phone conversation with ${callData.leadName || 'Vikram Malhotra'}.
+    // Resolve dynamic campaign details
+    const painPoint =
+      selectedCampaign?.primaryPainPoint ||
+      (selectedCampaign as any)?.primary_pain_point ||
+      selectedCampaign?.strategyConfig?.primaryPainPoint ||
+      '';
 
-ABSOLUTE CARDINAL DIRECTIVES:
-1. NEVER FRAME YOURSELF AS AN AI: You are a real human consultant speaking live on a phone call. Never say "As an AI", "I'm a virtual agent", or "Based on my data".
-2. LAW 4 (BREVITY & POWER): Keep every response strictly under 20 words. Elite callers never recite long paragraphs. Every sentence must be concise, crisp, and conversational.
-3. CHRIS VOSS TACTICAL EMPATHY: Label unspoken prospect hesitation directly (e.g., "Sounds like you're skeptical about refinancing promises...", "I know you're busy right now...").
-4. LINGUISTIC CHAMELEON: Code-switch seamlessly. Mirror the prospect. If they speak Hindi or Hinglish, speak polished, respectful Indian business Hinglish ("Aap", "Ji", "Bilkul", "Definitely"). If they speak pure English, respond with high-level corporate English.
-5. CONVERSATIONAL ROADMAP:
-   - Turn 1 Opening: "Namaste ${leadFirstName} ji, Anay bol raha hoon ${company} se. Ek quick minute baat ho sakti hai aapse?"
-   - Turn 2 Diagnostic Hook: Point out that ${company} specializes in ${motto}. Ask: "${q1}"
-   - Turn 3 Chris Voss 'No'-Oriented Close: "Would you be totally opposed to ${offer} with our team this Thursday?"
-   - Turn 4 Booking Lock: When they agree or suggest a time, immediately trigger the 'book_appointment' tool, confirm the slot warmly, and say goodbye.
-6. TOOL TRIGGER: When the user agrees to Thursday or any specific slot, execute the 'book_appointment' function tool immediately.
+    const valGap =
+      selectedCampaign?.valueGap ||
+      (selectedCampaign as any)?.value_gap ||
+      selectedCampaign?.strategyConfig?.valueGap ||
+      '';
+
+    const questions: string[] =
+      callData.questions ||
+      selectedCampaign?.qualificationQuestions ||
+      (selectedCampaign as any)?.qualification_questions ||
+      selectedCampaign?.strategyConfig?.qualifyingQuestions ||
+      selectedCampaign?.strategyConfig?.qualifying_questions || [
+        'What is your primary focus or current arrangement in this area?',
+        'Have you evaluated ways to improve rates or efficiency recently?',
+      ];
+
+    const playbook =
+      selectedCampaign?.objectionPlaybook ||
+      (selectedCampaign as any)?.objection_playbook ||
+      selectedCampaign?.strategyConfig?.objectionPlaybook ||
+      selectedCampaign?.strategyConfig?.objection_playbook || {
+        busy: 'Bilkul samajh sakta hoon ji. Should I connect tomorrow afternoon, or drop a quick WhatsApp?',
+        skeptical: 'Aapne hamare partner network par inquiry check ki thi. Main bas confirm kar raha tha ki aapko genuine details mili ya nahi.',
+        not_interested: 'Totally understand! Would you be opposed if I just kept your contact handy for when your renewal comes up?',
+      };
+
+    const agentGreeting = selectedAgent?.greeting || '';
+    const agentSystemPrompt = selectedAgent?.systemPrompt || (selectedAgent as any)?.system_prompt || '';
+    const leadCompany = selectedLead?.company || '';
+
+    // Fully dynamic system instruction generated at runtime from Agent + Campaign + Lead
+    const systemInstruction = `
+You are ${agentName}, ${agentRole} calling on behalf of ${company}.
+You are in an active, real-time phone conversation with ${leadName}${leadCompany ? ' from ' + leadCompany : ''}.
+You are a real human professional on a live phone call. NEVER state or acknowledge that you are an AI, virtual assistant, speech model, or automated bot.
+
+CORE BEHAVIOR & CADENCE:
+1. LAW 4 (BREVITY & POWER): Keep every speaking turn strictly under ${brevityWords} words. Speak like an experienced professional caller — short, conversational, and direct. Never recite long monologues or dump information.
+${(tactics.vossEmpathy ?? (tactics as any).voss_empathy ?? true) ? '2. CHRIS VOSS TACTICAL EMPATHY: Acknowledge what the prospect says first before speaking. Label unspoken feelings ("Sounds like you are in the middle of something urgent...", "Seems like you already have a solid system in place.").' : ''}
+${(tactics.linguisticMirroring ?? (tactics as any).linguistic_mirroring ?? true) ? '3. LINGUISTIC MIRRORING: Repeat the last 2-3 words the prospect said with an upward inflection to prompt them to elaborate naturally.' : ''}
+${(tactics.noOrientedClose ?? (tactics as any).no_oriented_close ?? true) ? '4. CALIBRATED NO-ORIENTED CLOSING: Phrase key questions so saying "No" makes them feel safe and in control ("Would you be opposed to a brief 5-minute review?", "Is it a bad time to talk?").' : ''}
+5. LINGUISTIC CODE-SWITCHING: Mirror the prospect respectfully. If they speak Hindi or Hinglish, speak polished, respectful Indian business Hinglish ("Aap", "Ji", "Bilkul", "Definitely", "Haanji"). If English, speak clean corporate English.
+6. ADAPTIVE NATURAL DIALOGUE: Never follow a rigid linear script. Adapt organically to whatever the prospect says.
+
+${agentSystemPrompt ? `AGENT SPECIFIC DIRECTIVES:\n${agentSystemPrompt}\n` : ''}
+CAMPAIGN OBJECTIVE & VALUE PROPOSITION:
+- Company / Brand: ${company}
+- Core Mission: ${motto}
+- Value Offer: ${offer}
+${painPoint ? `- Prospect Pain Point: ${painPoint}` : ''}
+${valGap ? `- Value Gap: ${valGap}` : ''}
+- Diagnostic Discovery Questions (weave naturally into conversation):
+${questions.map((q, idx) => `  ${idx + 1}. "${q}"`).join('\n')}
+
+OBJECTION PLAYBOOK (Use these reframes when encountered):
+- If busy or driving: "${playbook.busy || 'Bilkul samajh sakta hoon ji. Should I connect tomorrow afternoon, or drop a quick WhatsApp?'}"
+- If skeptical ("Where did you get my number?"): "${playbook.skeptical || 'Aapne hamare partner network par inquiry check ki thi. Main bas verify kar raha tha ki aapko fair information mili ya nahi.'}"
+- If not interested: "${playbook.not_interested || 'Totally understand! Would you be opposed if I just kept your contact handy for when your renewal comes up?'}"
+
+OPENING & BOOKING PROTOCOL:
+- OPENING GREETING: "${agentGreeting ? agentGreeting.replace('{{agent_name}}', agentName).replace('{{prospect_name}}', leadFirstName) : `Namaste ${leadFirstName} ji, ${agentName} calling from ${company}. Do you have a quick minute?`}"
+- CLOSING & TOOL TRIGGER: Propose the next step (${offer}). The moment the prospect agrees to a day or time slot (e.g. tomorrow, Thursday, 4 PM), IMMEDIATELY execute the 'book_appointment' tool. Warmly confirm the slot and conclude professionally.
 `.trim();
 
     try {
       const liveSession = new GeminiLiveSession({
         apiKey: geminiApiKey,
         model: 'gemini-3.8-live',
-        voiceName: geminiVoice,
+        voiceName: agentVoice,
         systemInstruction: systemInstruction,
         inputAudioCtx: inputCtx,
         outputAudioCtx: outputCtx,
@@ -447,14 +551,19 @@ ABSOLUTE CARDINAL DIRECTIVES:
         onAudioLevel: (levels) => {
           setMicAudioLevel(levels);
         },
-        onUserSpeech: (text) => {
-          setTranscript((prev) => {
-            const last = prev[prev.length - 1];
-            if (last && last.speaker === 'prospect') {
-              return [...prev.slice(0, -1), { speaker: 'prospect', text: `${last.text} ${text}`.trim() }];
-            }
-            return [...prev, { speaker: 'prospect', text }];
-          });
+        onUserSpeech: (text, isFinal) => {
+          if (!isFinal) {
+            setLiveInterimTranscript(text);
+          } else {
+            setLiveInterimTranscript('');
+            setTranscript((prev) => {
+              const last = prev[prev.length - 1];
+              if (last && last.speaker === 'prospect') {
+                return [...prev.slice(0, -1), { speaker: 'prospect', text: `${last.text} ${text}`.trim() }];
+              }
+              return [...prev, { speaker: 'prospect', text }];
+            });
+          }
         },
         onAgentSpeech: (text) => {
           setTranscript((prev) => {
@@ -468,7 +577,7 @@ ABSOLUTE CARDINAL DIRECTIVES:
         onToolCall: async (name, args) => {
           if (name === 'book_appointment') {
             const result = await persistAppointmentToCRM(args?.day, args?.time, args?.notes);
-            // Auto finish call 3.5s after appointment lock
+            // Auto finish call 3.8s after appointment lock
             setTimeout(() => {
               handleEndCall();
             }, 3800);
@@ -497,6 +606,7 @@ ABSOLUTE CARDINAL DIRECTIVES:
 
   const handleDeclineCall = () => {
     stopRingtone();
+    setLiveInterimTranscript('');
     liveSessionRef.current?.stop();
     setCallState('standby');
   };
@@ -504,17 +614,32 @@ ABSOLUTE CARDINAL DIRECTIVES:
   const handleEndCall = () => {
     stopRingtone();
     releaseWakeLock();
+    setLiveInterimTranscript('');
     liveSessionRef.current?.stop();
     setCallState('ended');
     setTimeout(() => {
       setCallState('standby');
       setCallDuration(0);
       setTranscript([]);
+      setLiveInterimTranscript('');
       setConnectionStatus('idle');
     }, 4500);
   };
 
   const triggerTestCall = () => {
+    // Populate call data from currently selected entities
+    setCallData({
+      agentId: selectedAgent?.id,
+      campaignId: selectedCampaign?.id,
+      leadId: selectedLead?.id,
+      leadName: selectedLead?.name || 'Prospect',
+      companyName: company,
+      callerName: company,
+      callerId: selectedLead?.phone || '+91 98765 43210',
+      campaignName: selectedCampaign?.name || 'Live Outbound Simulation',
+      motto,
+      offer,
+    });
     setTranscript([]);
     setPersistStatus('idle');
     setSavedAppointmentId(null);
@@ -536,7 +661,6 @@ ABSOLUTE CARDINAL DIRECTIVES:
   };
 
   const handleQuickChipText = (text: string) => {
-    // Send directly over Gemini Live WebSocket
     setTranscript((prev) => [...prev, { speaker: 'prospect', text }]);
     liveSessionRef.current?.sendTextMessage(text);
   };
@@ -566,9 +690,9 @@ ABSOLUTE CARDINAL DIRECTIVES:
       </div>
 
       {/* Realistic Mobile Device Frame */}
-      <div className="w-full max-w-[390px] h-[820px] max-h-[94vh] bg-zinc-950 border-4 border-zinc-800/80 rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col justify-between p-6">
+      <div className="w-full max-w-[420px] h-[860px] max-h-[96vh] bg-zinc-950 border-4 border-zinc-800/80 rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col justify-between p-6">
         {/* Dynamic Island / Speaker notch */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-36 h-6 bg-black rounded-full flex items-center justify-between px-3 gap-1 z-30 border border-zinc-800/50">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-40 h-6 bg-black rounded-full flex items-center justify-between px-3 gap-1 z-30 border border-zinc-800/50">
           <span className="w-2 h-2 rounded-full bg-zinc-900 border border-zinc-800" />
           <div className="flex items-center gap-1.5">
             <span
@@ -588,48 +712,100 @@ ABSOLUTE CARDINAL DIRECTIVES:
 
         {/* ----------------- STATE 1: STANDBY ----------------- */}
         {callState === 'standby' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-5 pt-8">
-            <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400 shadow-inner">
-              <Radio size={36} className="animate-pulse" />
-            </div>
+          <div className="flex-1 flex flex-col items-center justify-between text-center pt-8 pb-2 overflow-y-auto">
+            <div className="space-y-3 w-full">
+              <div className="w-14 h-14 rounded-full bg-zinc-900 border border-zinc-800 mx-auto flex items-center justify-center text-emerald-400 shadow-inner">
+                <Radio size={26} className="animate-pulse" />
+              </div>
 
-            <div className="space-y-1.5">
-              <h2 className="text-lg font-bold tracking-tight text-zinc-100">
-                Phone Client Active
-              </h2>
-              <p className="text-xs text-zinc-400 max-w-[240px] mx-auto leading-relaxed">
-                Direct Gemini Multimodal Live Engine connected. Listening for inbound calls...
-              </p>
-            </div>
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-zinc-100">
+                  Call Simulation Studio
+                </h2>
+                <p className="text-[11px] text-zinc-400 max-w-[260px] mx-auto leading-relaxed">
+                  Select your agent persona and campaign to test real-time speech and qualification.
+                </p>
+              </div>
 
-            <div className="p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 text-[11px] text-zinc-400 space-y-1.5 w-full text-left font-mono">
-              <div className="flex items-center justify-between text-zinc-300">
-                <span>Active Brand:</span>
-                <span className="text-blue-400 font-semibold">{company}</span>
+              {/* Dynamic Entity Selectors */}
+              <div className="space-y-2 text-left w-full">
+                {/* Agent Selector */}
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1">
+                    Select AI Voice Agent
+                  </label>
+                  <select
+                    value={selectedAgentId}
+                    onChange={(e) => setSelectedAgentId(e.target.value)}
+                    className="w-full py-2 px-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:border-emerald-500 outline-none"
+                  >
+                    {agents.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({a.roleTitle || (a as any).role_title || 'Consultant'} • {a.voiceModel || (a as any).voice_model || a.voice || 'Aoede'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Campaign Selector */}
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1">
+                    Select Outbound Campaign
+                  </label>
+                  <select
+                    value={selectedCampaignId}
+                    onChange={(e) => setSelectedCampaignId(e.target.value)}
+                    className="w-full py-2 px-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:border-emerald-500 outline-none"
+                  >
+                    {campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.companyName || (c as any).company_name || 'Brand'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Prospect / Lead Selector */}
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1">
+                    Select Prospect / Lead Target
+                  </label>
+                  <select
+                    value={selectedLeadId}
+                    onChange={(e) => setSelectedLeadId(e.target.value)}
+                    className="w-full py-2 px-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:border-emerald-500 outline-none"
+                  >
+                    {leads.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} {l.company ? `(${l.company})` : ''} - {l.phone || 'No phone'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-zinc-300">
-                <span>Prospect Target:</span>
-                <span className="text-emerald-400">{callData.leadName}</span>
-              </div>
-              <div className="flex items-center justify-between text-zinc-300">
-                <span>Engine:</span>
-                <span className="text-emerald-300 font-semibold">Gemini 2.0 Flash Live</span>
-              </div>
-              <div className="flex items-center justify-between text-zinc-300">
-                <span>Voice Persona:</span>
-                <span className="text-purple-400 font-semibold">{geminiVoice} (DeepMind 24kHz)</span>
-              </div>
-              <div className="flex items-center justify-between text-zinc-300 pt-1 border-t border-zinc-800/60">
-                <span>AI Studio Key:</span>
-                {geminiApiKey ? (
-                  <span className="text-emerald-400 font-bold flex items-center gap-1">
-                    <CheckCircle2 size={11} /> Connected
-                  </span>
-                ) : (
-                  <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <AlertCircle size={11} /> Required
-                  </span>
-                )}
+
+              {/* Live Configuration Summary Card */}
+              <div className="p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800 text-[11px] text-zinc-400 space-y-1.5 w-full text-left font-mono">
+                <div className="flex items-center justify-between text-zinc-300">
+                  <span>Agent Persona:</span>
+                  <span className="text-emerald-400 font-semibold">{agentName} ({agentRole})</span>
+                </div>
+                <div className="flex items-center justify-between text-zinc-300">
+                  <span>Gemini Voice:</span>
+                  <span className="text-purple-400 font-semibold">{agentVoice} (24kHz Live)</span>
+                </div>
+                <div className="flex items-center justify-between text-zinc-300">
+                  <span>Brevity Rule:</span>
+                  <span className="text-blue-400 font-semibold">Max {brevityWords} words / turn</span>
+                </div>
+                <div className="flex items-center justify-between text-zinc-300">
+                  <span>Active Brand:</span>
+                  <span className="text-zinc-200 font-semibold">{company}</span>
+                </div>
+                <div className="flex items-center justify-between text-zinc-300">
+                  <span>Prospect Target:</span>
+                  <span className="text-emerald-300 font-semibold">{leadName}</span>
+                </div>
               </div>
             </div>
 
@@ -637,13 +813,13 @@ ABSOLUTE CARDINAL DIRECTIVES:
               <button
                 type="button"
                 onClick={triggerTestCall}
-                className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/20"
+                className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/20"
               >
                 <PhoneCall size={16} />
-                <span>Simulate Incoming Call Now</span>
+                <span>Simulate Call with Selected Agent</span>
               </button>
               <p className="text-[10px] text-zinc-500 text-center">
-                Tap above to test locally, or dispatch from your Leads dashboard modal.
+                Uses full-duplex speech recognition & live Gemini audio synthesis.
               </p>
             </div>
           </div>
@@ -665,19 +841,17 @@ ABSOLUTE CARDINAL DIRECTIVES:
                 <h1 className="text-2xl font-bold tracking-tight text-white mt-1">
                   {company}
                 </h1>
-                {callData.campaignName && (
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    {callData.campaignName}
-                  </p>
-                )}
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Caller: {agentName} ({agentRole})
+                </p>
                 <p className="text-xs font-mono text-zinc-500 mt-1">
-                  {callData.callerId}
+                  Target: {leadName} ({callData.callerId || '+91 98765 43210'})
                 </p>
               </div>
 
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 font-mono">
                 <Sparkles size={12} className="text-emerald-400" />
-                <span>Gemini Live Neural Audio Ready</span>
+                <span>Gemini Live Neural Audio ({agentVoice})</span>
               </div>
             </div>
 
@@ -725,7 +899,7 @@ ABSOLUTE CARDINAL DIRECTIVES:
               </div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 font-mono">
                 <ShieldCheck size={11} />
-                <span>Gemini Live &bull; Sub-400ms &bull; 24kHz</span>
+                <span>{agentName} &bull; {agentVoice} &bull; Sub-400ms</span>
               </div>
             </div>
 
@@ -738,9 +912,9 @@ ABSOLUTE CARDINAL DIRECTIVES:
 
             {/* Dialogue Bubble Feed */}
             <div className="w-full flex-1 overflow-y-auto px-2 py-3 space-y-2.5 my-2 max-h-[300px]">
-              {transcript.length === 0 && (
+              {transcript.length === 0 && !liveInterimTranscript && (
                 <div className="text-center py-8 text-zinc-500 text-xs italic">
-                  Connecting Gemini Live voice stream... Speak freely into your phone.
+                  Connecting {agentName}'s voice stream... Speak freely into your phone.
                 </div>
               )}
               {transcript.map((msg, idx) => (
@@ -751,7 +925,7 @@ ABSOLUTE CARDINAL DIRECTIVES:
                   }`}
                 >
                   <span className="text-[10px] text-zinc-500 font-mono mb-0.5 px-1">
-                    {msg.speaker === 'agent' ? `Anay (${company})` : leadFirstName}
+                    {msg.speaker === 'agent' ? `${agentName} (${company})` : leadFirstName}
                   </span>
                   <div
                     className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${
@@ -764,55 +938,72 @@ ABSOLUTE CARDINAL DIRECTIVES:
                   </div>
                 </div>
               ))}
+              {liveInterimTranscript && (
+                <div className="flex flex-col items-end text-right animate-pulse">
+                  <span className="text-[10px] text-emerald-400 font-mono mb-0.5 px-1 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    {leadFirstName} (Speaking...)
+                  </span>
+                  <div className="max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed bg-emerald-950/60 border border-emerald-500/60 text-emerald-200 italic shadow-sm">
+                    "{liveInterimTranscript}"
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Quick Interactive Response Options & Live Speech Feedback */}
+            {/* Live Microphone Status & Audio Feedback */}
             <div className="w-full shrink-0 space-y-2">
-              <div className="p-2.5 rounded-2xl bg-zinc-900/90 border border-zinc-800/80 text-left space-y-1.5">
+              <div className="p-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 text-left space-y-2 shadow-inner">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
-                    Speak into mic (or tap below):
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    Live 16kHz PCM
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-xs font-semibold text-emerald-400 tracking-tight">
+                      Microphone Live — Speak Freely
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-500">16kHz Full-Duplex</span>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickChipText('Haan boliye Anay ji, kis baare mein call kiya aapne?')}
-                    className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
-                  >
-                    🗣️ "Haan boliye, kis baare mein call kiya?"
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickChipText('Currently I am paying around 13.5% APR on my car loan.')}
-                    className="w-full text-left p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-800 text-[11px] text-zinc-200 transition-colors border border-zinc-700/50 cursor-pointer"
-                  >
-                    🗣️ "Around 13.5% interest chal raha hai abhi."
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickChipText('Sure, Thursday 4 PM works fine with me.')}
-                    className="w-full text-left p-2 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/40 text-[11px] text-emerald-200 font-medium transition-colors border border-emerald-500/50 cursor-pointer"
-                  >
-                    🤝 "Sure, Thursday 4 PM works with me."
-                  </button>
+                {/* Dynamic Waveform Visualizer */}
+                <div className="flex items-center gap-1.5 h-6 justify-center w-full py-0.5">
+                  {micAudioLevel.map((lvl, idx) => (
+                    <div
+                      key={idx}
+                      className="w-1.5 rounded-full bg-emerald-400 transition-all duration-75"
+                      style={{ height: `${Math.min(24, Math.max(4, Math.round(lvl * 0.4)))}px` }}
+                    />
+                  ))}
                 </div>
-              </div>
 
-              {/* Dynamic Waveform Bars */}
-              <div className="flex items-center gap-1.5 h-6 justify-center w-full">
-                {micAudioLevel.map((lvl, idx) => (
-                  <div
-                    key={idx}
-                    className="w-1.5 rounded-full bg-emerald-400 transition-all duration-75"
-                    style={{ height: `${Math.min(24, Math.round(lvl * 0.4))}px` }}
-                  />
-                ))}
+                {/* Subtle Quick Response Chips (Optional fallbacks for noisy room) */}
+                <div className="pt-1.5 border-t border-zinc-800/60">
+                  <span className="text-[9px] text-zinc-500 uppercase tracking-wider block mb-1">
+                    Or tap quick phrase:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickChipText(`Haan boliye ${agentName} ji, kis baare mein call kiya?`)}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-[10px] text-zinc-300 transition-colors border border-zinc-700/60 cursor-pointer"
+                    >
+                      "Haan boliye?"
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickChipText('Currently we are reviewing our pricing and terms.')}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-[10px] text-zinc-300 transition-colors border border-zinc-700/60 cursor-pointer"
+                    >
+                      "Reviewing options"
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickChipText('Sure, Thursday 4 PM works fine with me.')}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/40 text-[10px] text-emerald-300 font-medium transition-colors border border-emerald-500/50 cursor-pointer"
+                    >
+                      "Thursday 4 PM works"
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* In-Call Action Grid */}
@@ -872,6 +1063,10 @@ ABSOLUTE CARDINAL DIRECTIVES:
 
             <div className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 space-y-1.5 text-left w-full font-mono">
               <div className="flex justify-between">
+                <span>Agent:</span>
+                <span className="text-white font-semibold">{agentName} ({agentRole})</span>
+              </div>
+              <div className="flex justify-between">
                 <span>Disposition:</span>
                 <span className="text-emerald-400 font-bold">Appointment Locked</span>
               </div>
@@ -881,7 +1076,7 @@ ABSOLUTE CARDINAL DIRECTIVES:
               </div>
               <div className="flex justify-between">
                 <span>AI Engine:</span>
-                <span className="text-purple-400">Gemini Live (Recorded)</span>
+                <span className="text-purple-400">Gemini Live ({agentVoice})</span>
               </div>
               <div className="flex justify-between items-center pt-1 border-t border-zinc-800">
                 <span>CRM Sync:</span>
@@ -923,43 +1118,29 @@ ABSOLUTE CARDINAL DIRECTIVES:
               <h3 className="text-sm font-bold text-white">Google AI Studio API Key</h3>
             </div>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Required for genuine Gemini Multimodal Live speech-to-speech. Paste your Gemini API key below:
+              Resonology connects directly to Gemini Multimodal Live WebSocket (<code className="text-zinc-300">gemini-3.8-live</code>) with sub-400ms voice turnaround.
             </p>
             <input
               type="password"
+              placeholder="AIzaSy..."
               value={tempApiKeyInput}
               onChange={(e) => setTempApiKeyInput(e.target.value)}
-              placeholder="AIzaSy..."
-              className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 font-mono"
+              className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
             />
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-zinc-400">Select Voice Persona:</label>
-              <select
-                value={geminiVoice}
-                onChange={(e) => setGeminiVoice(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white focus:outline-none focus:border-emerald-500"
-              >
-                <option value="Aoede">Aoede (Authoritative, Deep, Professional)</option>
-                <option value="Kore">Kore (Calm, Reassuring, Consultative)</option>
-                <option value="Charon">Charon (Deep Male, Confident)</option>
-                <option value="Puck">Puck (Energetic, High-Tempo)</option>
-                <option value="Fenrir">Fenrir (Strong, Direct)</option>
-              </select>
-            </div>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowApiKeyModal(false)}
-                className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => saveApiKey(tempApiKeyInput)}
-                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-black hover:bg-emerald-400"
+                className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-colors cursor-pointer"
               >
-                Save & Connect
+                Save Key
               </button>
             </div>
           </div>

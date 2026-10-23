@@ -147,27 +147,85 @@ export const CampaignSchema = z.object({
   strategyConfig: z
     .object({
       companyName: z.string().optional(),
+      company_name: z.string().optional(),
       motto: z.string().optional(),
       offer: z.string().optional(),
       targetAudience: z.string().optional(),
+      target_audience: z.string().optional(),
       primaryPainPoint: z.string().optional(),
+      primary_pain_point: z.string().optional(),
       valueGap: z.string().optional(),
+      value_gap: z.string().optional(),
       qualifyingQuestions: z.array(z.string()).default([]),
+      qualifying_questions: z.array(z.string()).optional(),
       objectionPlaybook: z.record(z.string(), z.string()).default({}),
+      objection_playbook: z.record(z.string(), z.string()).optional(),
     })
     .default({}),
+  companyName: z.string().default("FinEdge Capital"),
+  company_name: z.string().optional(),
+  motto: z.string().default("reducing vehicle financing rates from 14% down to 8.4%"),
+  offer: z.string().default("a complimentary 5-minute portfolio interest audit this Thursday"),
+  primaryPainPoint: z.string().default("Paying predatory double-digit interest rates on vehicle loans"),
+  primary_pain_point: z.string().optional(),
+  valueGap: z.string().default("₹4,200/month in avoidable interest overpayments"),
+  value_gap: z.string().optional(),
+  qualificationQuestions: z.array(z.string()).default([
+    "What interest rate are you currently paying on your primary vehicle loan?",
+    "Has your vehicle been registered for over 12 months with clean repayment?",
+  ]),
+  qualification_questions: z.array(z.string()).optional(),
+  objectionPlaybook: z.record(z.string(), z.string()).default({
+    busy: "Bilkul samajh sakta hoon ji. Should I connect tomorrow afternoon, or drop a quick WhatsApp?",
+    skeptical: "Aapne hamare partner network par rate comparison browse kiya tha. Main bas verify kar raha tha ki aapko fair rate mila ya nahi.",
+    not_interested: "Totally understand! Would you be opposed to keeping our contact handy for when your loan renewal comes up?",
+  }),
+  objection_playbook: z.record(z.string(), z.string()).optional(),
+  targetAudience: z.string().default("Vehicle loan holders with >12% interest"),
+  target_audience: z.string().optional(),
 });
 export type Campaign = z.infer<typeof CampaignSchema>;
+
+export const AgentTacticsSchema = z.object({
+  vossEmpathy: z.boolean().default(true),
+  law4Brevity: z.boolean().default(true),
+  noOrientedClose: z.boolean().default(true),
+  linguisticMirroring: z.boolean().default(true),
+});
+export type AgentTactics = z.infer<typeof AgentTacticsSchema>;
 
 export const AgentSchema = z.object({
   id: z.string().uuid(),
   orgId: z.string().uuid(),
   name: z.string(),
   description: z.string().default(""),
-  status: z.enum(["draft", "published", "archived"]).default("draft"),
+  status: z.enum(["draft", "published", "active", "inactive", "archived"]).default("active"),
   activeVersion: z.string().default("v1.0.0"),
   primaryLanguage: LangEnum.default("en-IN"),
-  voiceId: z.string().default("alloy"),
+  language: z.string().default("en-IN"),
+  voiceId: z.string().default("Aoede"),
+  voice: z.string().default("Aoede"),
+  voice_model: z.string().optional(),
+  voiceModel: z.string().default("Aoede"),
+  roleTitle: z.string().default("Senior Growth Consultant"),
+  role_title: z.string().optional(),
+  brevityWords: z.number().default(25),
+  brevity_words: z.number().optional(),
+  tactics: AgentTacticsSchema.default({
+    vossEmpathy: true,
+    law4Brevity: true,
+    noOrientedClose: true,
+    linguisticMirroring: true,
+  }),
+  systemPrompt: z.string().default("You are an elite conversational growth consultant. Speak like an experienced professional on a live phone call — crisp, conversational, and direct."),
+  system_prompt: z.string().optional(),
+  greeting: z.string().default("Namaste, this is {{agent_name}} calling. Do you have a quick minute?"),
+  voiceSpeed: z.number().default(1.0),
+  voice_speed: z.number().optional(),
+  voiceTemperature: z.number().default(0.7),
+  voice_temperature: z.number().optional(),
+  communicationStyle: z.string().default("consultative"),
+  communication_style: z.string().optional(),
   createdAt: z.string(),
 });
 export type Agent = z.infer<typeof AgentSchema>;
