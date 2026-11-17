@@ -1,40 +1,33 @@
-# docs_index.md
+# Documentation Index
 
-Start here. New files use lowercase snake_case; older files are uppercase. Names will be unified in a later clean-up PR; do not rename them in a feature PR.
+Welcome to the IntelliCall documentation repository. Documentation is organized into two primary subfolders:
 
-| Document | Read it if you | Status |
-|---|---|---|
-| `../AGENTS.md` (repo root) | are an IDE agent (read first, every session) — **create this file if it doesn't exist** using §12 of `engineering_standards.md` | Binding |
-| `engineering_standards.md` | write any code | Binding |
-| `FRONTEND_SPEC.md` | build or review the frontend | Master spec |
-| `frontend/01..06-*.md` | work on a specific screen, contract, or mock | Detail specs |
-| `frontend/reference/` | need the visual target (`IntelliCall Screens.html` — open in browser; no PNGs yet) | Reference |
-| `frontend_update.md` | migrate the old frontend to the new screens | Instruction, phases F0 to F5 |
-| `backend_update.md` | build the Supabase backend | Instruction, phases B0 to B9 |
-| `security_and_privacy.md` | touch auth, data, calls, AI, or secrets | Binding |
-| `environment_and_secrets.md` | add or use configuration | Binding |
-| `testing_strategy.md` | add a feature or change CI | Binding |
-| `deployment_and_ci.md` | ship, release, or demo | Binding |
-| `voice_and_ai_service.md` | work on the voice worker or AI service | Binding |
-| `ai_llm_architecture.md` | connect LLM, select models, engineer low latency, or integrate voice | Binding |
-| `implementation.md` | need the concrete execution roadmap, phase order, and checkpoints | Master Guide |
-| `COMPETITIVE_BENCHMARK.md` | want context on why features exist | Context |
-| `PHASE_PROMPTS.md` | want copy-paste prompts to hand to the IDE agent for each phase | Instruction |
-| `frontend/DECISIONS.md` | want to know why a small choice was made | Log, append only |
-| `frontend/MIGRATION_MAP.md` | are mid-migration (created in F0) | Working doc |
-| `backend/AUDIT.md` | are starting backend work (created in B0) | Working doc |
-| `adr/` | want the reasoning behind a major decision | Records |
+---
 
-## Precedence when documents disagree
-1. `security_and_privacy.md`, `ai_llm_architecture.md`, and `AGENTS.md`
-2. `engineering_standards.md`
-3. `implementation.md`, `backend_update.md`, and `frontend_update.md` (newer than the specs)
-4. `FRONTEND_SPEC.md` and `frontend/*.md`
-5. Reference screens (visual only)
+## 📁 1. Final Project Deliverables (`final_docs/`)
 
-If two documents conflict, follow the higher one and fix the lower one in the same PR.
+Contains the official production documentation, contribution matrix, and architecture specifications:
 
-## Where to record things
-- Small choice while building → `frontend/DECISIONS.md` (or a `backend/` equivalent).
-- Major, hard-to-reverse choice → new file in `adr/` (copy the previous one's headings).
-- Changed behavior → update the relevant spec in the same PR.
+| Document | Description |
+| :--- | :--- |
+| **[`final_docs/CONTRIBUTION.md`](./final_docs/CONTRIBUTION.md)** | Official project team matrix, module ownership, and contribution deliverables for all 4 team members |
+| **[`final_docs/ARCHITECTURE.md`](./final_docs/ARCHITECTURE.md)** | 3-Tier Enterprise Architecture Spec (React 19 + Express.js API + Supabase PostgreSQL) |
+| **[`final_docs/API_DOCUMENTATION.md`](./final_docs/API_DOCUMENTATION.md)** | Detailed specification of all 14 Express.js REST API routes and webhook receivers |
+| **[`final_docs/DEPLOYMENT.md`](./final_docs/DEPLOYMENT.md)** | Live Cloudflare Pages production deployment guide (`intellicall.pages.dev`) by Anay Sharma and local setup |
+
+---
+
+## 📁 2. Historical & Development Specs (`dev_docs/`)
+
+Contains technical research, Phase 2 migration guides, cross-layer debugging reports, and architectural decision records:
+
+| Document / Subfolder | Scope |
+| :--- | :--- |
+| **`dev_docs/ai_llm_architecture.md`** | Real-time Gemini Live WebSocket speech-to-speech architecture |
+| **`dev_docs/COMPETITIVE_BENCHMARK.md`** | Market analysis & latency comparisons (Retell AI, Bland AI, Vapi) |
+| **`dev_docs/engineering_standards.md`** | Coding standards, linting, and design translation rules |
+| **`dev_docs/FRONTEND_SPEC.md`** | Master frontend user interface specification |
+| **`dev_docs/backend/`** | Backend audit records and baseline analysis |
+| **`dev_docs/frontend/`** | Screen specifications, component contracts, and migration maps |
+| **`dev_docs/Debugging/`** | Cross-layer root cause debugging reports (audio, db, backend) |
+| **`dev_docs/adr/`** | Architectural Decision Records (ADRs) |
