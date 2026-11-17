@@ -248,10 +248,65 @@ export const deleteLead = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * 6. POST /api/v1/leads/bulk
+ * Ingest multiple leads in a single batch insert.
+ */
+export const createLeadsBulk = asyncHandler(async (req, res) => {
+  const { leads } = req.body;
+
+  if (!Array.isArray(leads) || leads.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Array of leads is required',
+    });
+  }
+
+  const leadsToInsert = leads.map((item) => {
+    const fullName = (item.name || `${item.first_name || item.firstName || ''} ${item.last_name || item.lastName || ''}`).trim() || 'New Lead';
+    return {
+      organization_id: req.orgId,
+      created_by: req.user.id,
+      name: fullName,
+      first_name: item.first_name || item.firstName || fullName.split(' ')[0] || null,
+      last_name: item.last_name || item.lastName || fullName.split(' ').slice(1).join(' ') || null,
+      company: item.company || '',
+      title: item.title || '',
+      email: item.email || '',
+      phone: item.phone || '',
+      status: item.status || 'new',
+      source: item.source || 'bulk_import',
+      campaign_id: item.campaign_id || item.campaignId || null,
+      estimated_value: item.estimated_value !== undefined ? Number(item.estimated_value) : 0,
+      next_action: item.next_action || item.nextAction || null,
+    };
+  });
+
+  const { data, error } = await req.supabase
+    .from('leads')
+    .insert(leadsToInsert)
+    .select();
+
+  if (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to bulk insert leads',
+      error: error.message,
+    });
+  }
+
+  res.status(201).json({
+    success: true,
+    count: data ? data.length : 0,
+    leads: data || [],
+  });
+});
+
 export default {
   getLeads,
   getLeadById,
   createLead,
   updateLead,
   deleteLead,
+  createLeadsBulk,
 };
