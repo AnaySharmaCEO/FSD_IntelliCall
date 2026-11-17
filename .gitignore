@@ -69,5 +69,6 @@ backend/.venv/
 backend/voice-agent/.venv/
 
 # Proprietary AI Voice Worker & Backend Core Logic
-backend/
+backend/voice-agent/
+backend/resonology-ai/
 frontend/src/voice/geminiLive.ts
