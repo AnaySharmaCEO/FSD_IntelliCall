@@ -72,3 +72,8 @@ backend/voice-agent/.venv/
 backend/voice-agent/
 backend/resonology-ai/
 frontend/src/voice/geminiLive.ts
+
+# Private Internal Reports and Developer Notes (Ignored by Git)
+*.private.md
+.private_reports/
+
