@@ -77,3 +77,5 @@ frontend/src/voice/geminiLive.ts
 *.private.md
 .private_reports/
 
+# Editor swap files
+*.swp
